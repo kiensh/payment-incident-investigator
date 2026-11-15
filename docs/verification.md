@@ -1,6 +1,6 @@
 # Verification record
 
-Verification was iterative. **Final accepted implementation: `16632d0`**, with a fresh scoped no-blocker finding. See `docs/FINAL_VERIFICATION.md` for the final result. Earlier failures and original scores below are intentionally retained.
+Verification was iterative. **Build-time accepted implementation: `16632d0`**, with a fresh scoped no-blocker finding at that time. A later user-requested broader review found additional open edge cases; see `docs/ENGINEERING_REVIEW.md` and the final section below. `docs/FINAL_VERIFICATION.md` is the historical build-time record. Earlier failures and original scores are intentionally retained.
 
 ## Recorded implementation checks
 
@@ -72,4 +72,18 @@ Shared ledger **126→132/150**. Final verifier used6 requests;18 remain. Return
 
 Detailed commands and limitations: `docs/FINAL_VERIFICATION.md` and `artifacts/final-integrated-report.txt`; safe public HTTP/tool traces: `artifacts/final-integrated-ui-http.jsonl`; scores/hashes/invariants: `artifacts/final-integrated-audit.json`. Final clean-machine install was not repeated; the earlier isolated clean export passed and dependency locks remained unchanged. Fault/retry tests were mocked; final live coverage was exactly two cases. Minor nonblockers remain documented.
 
-Acceptance stop condition met; autonomous loop stopped and all development/verifier workers finished. Main local demo remains running. Final handover commit contains documentation, retained probes and independent adjudication only.
+Acceptance stop condition met for that build-time scope; autonomous loop stopped and its workers finished. Main local demo remained running. Final handover commit contained documentation, retained probes and independent adjudication only.
+
+### Additional user-requested all-case and AI-engineering reviews — 2026-11-15, 15:16 onward
+
+Two new independent contexts reviewed candidate `0da82df` without using prior review verdicts as correctness evidence. Application implementation, existing tests/oracles and default database stayed unchanged.
+
+The all-case verifier ran208 Python tests, mypy/Ruff, frontend28 tests/typecheck/build and7 mocked browser tests. It also selected and submitted every one of35 cases through the actual built UI with a real offline backend/tool session on its isolated8023 server, opening an evidence record for each. It reviewed217 records and all returned findings. API and browser outputs scored33/35 against original oracles,35/35 against the separately labelled adjudicated oracles; F02/F03 raw disagreements remain explicit. All35 UI interaction checks passed, including representative mobile/keyboard checks. A nonblocking explanation defect affected15/20 development mock summaries, which led only with generic context/warnings.
+
+Three additional live API investigations—normal, timestamp uncertainty, unresolved webhook—completed using10 requests (4+3+3), zero retries. Original-oracle live score2/3; adjudicated3/3. The full35-case live sweep was not run; this review's actual UI sweep used mock inference, not live inference. Ledger132→142/150, leaving8. Browser routes were removed/browser closed, and only the verifier's8023 server stopped. Full outputs and commands: `artifacts/all-cases-clean-20261115/report.json` and `browser-scored.json`.
+
+The separate AI-engineering reviewer used zero real model calls/browser interactions. It recommended keeping the architecture but identified counterexamples outside the35-case suite: stale canceled snapshot plus later processing activity can be closed; a webhook-delivery question with missing delivery records can receive unknown delivery plus unqualified closure; the SDK can accept incomplete tool JSON and default a missing argument. It also identified evaluation/relevance blind spots, ignored final runbook selection, deadline/cancellation mismatch and incomplete attempt diagnostics. These findings are not a claim that the live model produced fabricated settlement statements; fabricated-claim probes demonstrate grader blind spots.
+
+Coordinator independently confirmed the first three counterexamples with `env -u ANTHROPIC_CUSTOM_HEADERS INVESTIGATOR_MODE=mock uv run python artifacts/review-confirmations.py`, using temporary databases/mock transports and zero real requests. Results: canceled10:05 + processing10:10 + failed display10:20 → failed/no_escalation with no unknown; captured/receipt/event but no deliveries + webhook question → unknown delivery and no_escalation/blanket closure; incomplete argument JSON → accepted payment_id and default kind=all, reading only the selected payment. Repro output: `artifacts/review-confirmations.json`.
+
+Current recommendation and acceptance checks are in `docs/ENGINEERING_REVIEW.md`. These are open review findings; **no implementation fixes were requested or applied**. The passing known-scenario suite is preserved as bounded evidence, not proof of arbitrary-question/evidence correctness or incremental agent value. Review documentation updates do not alter the tested runtime.

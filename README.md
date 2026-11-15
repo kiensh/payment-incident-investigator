@@ -8,11 +8,11 @@ The workspace separates **facts, discrepancies, hypotheses, unknowns and safe ch
 
 **Data disclaimer:** the Kaggle source and all lifecycle observations are synthetic. Generated lifecycle records are independent demonstrations, not reconstructed histories. The application has no payment-provider connection and moves no money. The only live integration is model inference through an existing local Copilot bridge.
 
-## Verified handover — 2026-11-15
+## Verification and current review — 2026-11-15
 
-Fresh independent verification found no unresolved blocking defect in implementation `16632d0`. The final repository has **208 passing Python tests**, **28 frontend tests**, **7 mocked Chromium tests**, and passing typechecks/build. Final API baselines passed 20 development and 10 exposed regression cases; five additional cases scored 3/5 against their preserved original oracle and 5/5 after a separately documented independent adjudication. Final real-UI checks passed an unresolved-webhook case and a normal/recovered case. See [final acceptance record](docs/FINAL_VERIFICATION.md) for coverage and limitations—not an untouched-hold-out or production-readiness claim.
+The build-time verification of `16632d0` found no blocker in its tested scope. A later user-requested all-case and AI-engineering review found additional edge cases outside that suite, including premature inquiry closure and incomplete tool-JSON acceptance. These remain unfixed; see [current engineering review](docs/ENGINEERING_REVIEW.md). The final repository has **208 passing Python tests**, **28 frontend tests**, **7 mocked Chromium tests**, and passing typechecks/build. Final API baselines passed 20 development and 10 exposed regression cases; five additional cases scored 3/5 against their preserved original oracle and 5/5 after a separately documented independent adjudication. Final real-UI checks passed an unresolved-webhook case and a normal/recovered case. See [final acceptance record](docs/FINAL_VERIFICATION.md) for coverage and limitations—not an untouched-hold-out or production-readiness claim.
 
-**Demo request budget:** this build used **132/150** application bridge requests; **18 remain** in the current local ledger. Offline tests consume none. Do not rerun a full live evaluation or reset the ledger without a newly authorized budget.
+**Demo request budget:** the build and subsequent requested testing used **142/150** application bridge requests; **8 remain** in the current local ledger. Offline tests consume none. Do not rerun a full live evaluation or reset the ledger without a newly authorized budget.
 
 ## Quick start — no model service required
 

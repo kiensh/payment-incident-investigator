@@ -1,5 +1,7 @@
 # Final acceptance record
 
+> Historical build-time record. The later user-requested review in `docs/ENGINEERING_REVIEW.md` records additional unresolved edge cases on unchanged application code. This record is not a current blanket all-clear.
+
 **Verified implementation:** `16632d095ea01f20e856e721119dcf3d08324c19`
 
 **Final fresh-context check:** 2026-11-15, approximately 07:29–07:40 UTC.
