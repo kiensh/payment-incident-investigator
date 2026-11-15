@@ -16,4 +16,17 @@ The verifier may write `holdout/*`, `expected/holdout.json` and verification rep
 
 The first frozen candidate `6de2098` scored7/10 on independently authored cases in `holdout/prepare.py`, with manually specified expectations in `expected/holdout.json`. Its three failures informed fixes, so **these ten cases are now exposed regression evidence, not untouched hold-outs**. The7 baseline-passing cases were also run live once (24 model requests). Exact commands, findings and limits are recorded in `docs/verification.md`.
 
-Live requests use the same persistent ledger (150 maximum application-to-bridge calls; no hidden budget resets). Only one worker controls the shared Playwright browser. Test databases and browser sessions must be isolated.
+A second fresh verifier authored five more cases under `final_holdout/prepare.py`. Their original oracle in `expected/final_holdout.json` remains unchanged and scores3/5. A later fresh integrated verifier independently adjudicated two disputed expectations (mandatory escalation for compatible partial/pending captures; a procedural rule ID mistaken for an asserted discrepancy). The separately labelled `expected/final_adjudicated.json` scores5/5 while retaining the financial distinctions, required checks and prohibitions on unsupported claims. These five cases are also exposed regressions, not untouched hold-outs.
+
+Reproduce the supported regression suite without inference:
+
+```sh
+uv run python -m evals.holdout.prepare --database artifacts/h-regression.sqlite
+uv run python -m evals.run --mode mock --database artifacts/h-regression.sqlite \
+  --expected evals/expected/holdout.json --output artifacts/h-regression.json
+uv run python -m evals.final_holdout.prepare --output artifacts/f-regression.sqlite
+uv run python -m evals.run --mode mock --database artifacts/f-regression.sqlite \
+  --expected evals/expected/final_adjudicated.json --output artifacts/f-adjudicated.json
+```
+
+Using `final_holdout.json` instead intentionally reproduces the preserved original3/5 result. See `docs/FINAL_VERIFICATION.md` for exact final coverage. Live requests use the same persistent ledger (150 maximum application-to-bridge calls;132 used at handover). No hidden budget resets. Isolate test databases/browser sessions and reserve remaining live capacity for the demo.

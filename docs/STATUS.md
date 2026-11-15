@@ -1,27 +1,34 @@
-# Build checkpoint
+# Final build checkpoint
 
-- Start: 2026-11-15 06:19:42 UTC. Deadline: 2026-11-15 12:19:42 UTC. Advisory work deadline, not a billing/process-kill guarantee.
-- Candidate: `f172094` received a second fresh independent review; now unfrozen for the remaining findings. Branch `feat/investigator-mvp`; no authorized remote, push blocked.
-- Live bridge requests: 126 / 150 (2026-11-15 07:14 UTC); 24 remain, reserved for final verification/contingency. Shared bridge unchanged.
-- Results: clean exported setup passed; 98 Python + 28 frontend + 7 mocked browser tests, both typechecks/build passed. Dev baseline 20/20 and live 20/20 (62 model calls). Independent browser: 3 live investigations (9 calls), 13 mocked checks plus edge checks, no blocking UI defects. Independent incident baseline: 7/10; selected passing subset live 7/7 (24 calls), not full hold-out success.
-- Domain fixes implemented: authorization amount uncertainty, partial timestamp ordering with supported later-display citations, and unresolved webhook follow-up. 115 Python tests pass; dev baseline20/20 and exposed regressions10/10 under strengthened amount/evidence/summary scoring. No new live requests for these fixes yet.
-- Second-review corrections implemented: SDK response-schema validation and structured malformed-event failures; no serializer warning leakage; source-field-grounded quality unknowns; six-call bounded loop with safe validation/tool diagnostics and validated-next-check summaries. Current full suite200 Python tests,28 frontend tests,7 browser tests, typechecks/build/lint pass; dev baseline20/20 and exposed H regressions10/10. No new live calls yet; original H10 cause remains unknown.
-- Hold-out status: initial10 cases and additional5 cases are now exposed regression evidence. New raw oracle scored3/5: two oracle mismatches were independently explained, preserved unchanged; do not claim5/5 untouched accuracy. Live selected fresh3/3 passed; targeted H08/H09 passed and H10 incomplete.
+- **Complete:** local, interview-ready, production-minded MVP. Final fresh verifier found no unresolved blocking defect in the tested scope. No production-readiness claim.
+- **Verified implementation:** `16632d095ea01f20e856e721119dcf3d08324c19`. Later handover changes preserve tests, independent adjudication and documentation only; runtime source is unchanged.
+- **Window:** started 2026-11-15 06:19:42 UTC; deadline 12:19:42 UTC. Finished early after acceptance. This was an advisory deadline, not a billing/process-kill guarantee.
+- **Runtime:** live workspace at http://127.0.0.1:8000; existing Copilot bridge at localhost:8765 unchanged. Verification-only servers stopped. Development/verifier agents finished; autonomous loop stopped.
+- **Git:** branch `feat/investigator-mvp`, local checkpoints committed. No authorized remote exists, so push is blocked; no remote or deployment was created.
+- **Application bridge requests:** **132 / 150**, including the five calls in an earlier incomplete investigation. **18 remain.** No ledger reset, SDK automatic retries or external fallback. Hidden upstream retries and coding-agent usage are not measured by this cap.
 
-## Acceptance checklist
+## Acceptance checks
 
-- [ ] Clean locked install and repeatable offline dataset preparation with provenance and quality report.
-- [ ] Explicit ontology, deterministic domain checks, scoped read-only tools, freshness tests.
-- [ ] One bounded bridge-backed investigation agent; facts/citations guarded, mock mode explicit.
-- [ ] Accessible narrow-width investigation workspace; real browser interaction and mocked error tests.
-- [ ] Versioned documented runbooks and simple tested retrieval.
-- [ ] Approximately 20 development and 10 independently authored hold-out incidents; real API eval, rules baseline, honest metrics.
-- [ ] No financial writes, exposed credentials, answer-key access, invented hidden history, or unsupported confidence.
-- [ ] README, one-page brief, architecture, limitations, demo walkthrough.
-- [ ] Frozen integrated candidate independently verified in fresh contexts with no blocking defects.
+- [x] Locked clean exported setup and repeatable offline preparation; original archive, checksum, attribution/license metadata and quality report preserved.
+- [x] Explicit ontology and deterministic validation/rules; read-only snapshots, scoped tools and freshness tests.
+- [x] One bridge-backed tool-using agent; cited financial facts, uncertainty, safe checks and explicit mock mode.
+- [x] Accessible investigation workspace exercised with real Playwright interaction, keyboard checks and 375px screenshots.
+- [x] Versioned provider-based runbooks and tested simple retrieval/content-hash caching.
+- [x] Twenty development incidents and fifteen independently authored incidents; exposure/adjudication history disclosed.
+- [x] Runtime tool/credential/private-file boundaries tested; no financial actions, invented hidden history or confidence scores.
+- [x] README, customer brief, architecture, limitations, demo and verification records complete.
+- [x] Final frozen implementation independently verified in a fresh context with no unresolved blocking defects.
 
-## Ownership and sequence
+## Actual final results
 
-Coordinator owns manifests/locks, shared contracts, `src/agent`, `src/tools`, API, integration and final docs. Data/domain worker will own `src/domain`, `src/storage`, `src/pipeline`, dataset provenance, ontology, observations and deterministic domain tests. UI worker will own `web/src` and frontend/browser tests (not manifests). Initial bridge research is read-only. Disjoint-path editing, at most three workers. Fresh verification workers author independent hold-out cases and run read-only checks against frozen candidates; findings are fixed by coordinator, then reverified. Only one worker uses shared Playwright at a time. No public deployment or artifact publication.
+- Repository suite: **208 Python tests**, Python typecheck and lint pass (includes the final verifier's eight retained protocol probes).
+- Frontend: **28 tests**, TypeScript check/build and **7 Chromium mocked-API browser tests** pass.
+- Final API baselines: development **20/20**; exposed H regressions **10/10**; F original oracle **3/5**, separately independently adjudicated F oracle **5/5**. Original expectations remain intact.
+- Final live UI: H10 unresolved webhook case and H01 normal/recovered case both HTTP200, **3 model requests each**, zero retries, supported citations and appropriate disposition.
+- Earlier development live evaluation: **20/20** on the initial candidate. Final revision did not repeat that entire live sweep.
 
-Next: commit this candidate, restart only our8000 app, and freeze for one newly created integrated verifier. Allocate at most12 requests (two investigations at six-call cap), leaving12 contingency. Verifier should independently adjudicate preserved F02/F03 oracle mismatches and validate live H10 plus a normal case. Deadline remains12:19:42 UTC.
+## Limits and handover
+
+All H/F cases are now exposed regression evidence, not untouched hold-out accuracy. One earlier live H10 run was incomplete; its original cause is unknown and its failure is preserved. Final fault/retry tests were mocked; clean installation was independently checked earlier with unchanged locks. Physical mobile keyboards, real payment-provider integration, real-customer privacy, authentication/tenancy, settlement, upstream billing and genuine production deployment remain unverified/out of scope. Minor polish: favicon404 and plain-text runbook source URLs.
+
+Start with `README.md`, `docs/FINAL_VERIFICATION.md`, `docs/demo.md` and `docs/brief.md`. Full history: `docs/verification.md`; local raw traces/screenshots: `artifacts/` (ignored). **Next action: none required for this build.** Preserve the remaining request budget for the demo; do not reset it without new authorization.

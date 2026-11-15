@@ -1,6 +1,6 @@
 # Verification record
 
-Verification is iterative. Candidate `6de2098` has completed independent checks, which found defects; it is not the final accepted candidate.
+Verification was iterative. **Final accepted implementation: `16632d0`**, with a fresh scoped no-blocker finding. See `docs/FINAL_VERIFICATION.md` for the final result. Earlier failures and original scores below are intentionally retained.
 
 ## Recorded implementation checks
 
@@ -59,3 +59,17 @@ Source quality unknowns now come from actual missing source-record currency/time
 The agent's ceiling increased from five to six calls, adding one bounded recovery round; it accepts whole JSON-fence wrappers and can include validated read-only next checks in its composed summary. It still rejects free prose, invented findings and hypotheses promoted as facts. Incomplete runs now expose actual tool traces, request counts and fixed selection-validation reasons, excluding model text/reasoning. **The original H10 failure's cause remains unknown**; these are bounded reliability/diagnostic improvements, not a claimed reconstruction of that failure. A fresh live verification is still required.
 
 Coordinator automated check:200 Python tests pass without serializer warnings; Python typecheck passes. New live request usage remains zero during this correction.
+
+### Final fresh integrated verification — `16632d0`, 07:29–07:40 UTC
+
+**Scoped no-blocker finding.** A newly created verifier independently reran200 Python tests, typecheck, frontend28 tests/build/typecheck and7 mocked Chromium tests; added8 passing transport probes; prepared data offline; and reviewed evidence support, warning claims and boundaries. The served UI assets byte-matched an isolated build. Its8 probes are retained in `tests/test_protocol_verification.py`, yielding208 passing repository tests at handover without changing runtime source.
+
+Final baselines: dev20/20, exposed H10/10, F original3/5 and separately adjudicated F5/5. Original oracle unchanged; justified copy in `evals/expected/final_adjudicated.json`. This is exposed regression evidence, not untouched accuracy.
+
+Two actual UI submissions on a separate8020 backend: **H10 HTTP200, captured56.02 USD/check_required,3 calls,7,761ms**; **H01 HTTP200, one capture187.43 USD/no_escalation,3 calls,6,854ms**. Both used all four tools, had cited support, no retry, and no invented cause or financial action. Desktop/mobile screenshots, loading and keyboard/evidence flows were inspected. No live outcome in this final two-case check remained incomplete. This successful check does not establish the unavailable cause of the earlier H10 failure.
+
+Shared ledger **126→132/150**. Final verifier used6 requests;18 remain. Returned cache counters were observed (3,334-token creation/read prefix), but monetary savings, private upstream traces and internal retries remain unverified. Own8020 server stopped;8000 workspace and8765 bridge preserved. No public deployment or remote creation.
+
+Detailed commands and limitations: `docs/FINAL_VERIFICATION.md` and `artifacts/final-integrated-report.txt`; safe public HTTP/tool traces: `artifacts/final-integrated-ui-http.jsonl`; scores/hashes/invariants: `artifacts/final-integrated-audit.json`. Final clean-machine install was not repeated; the earlier isolated clean export passed and dependency locks remained unchanged. Fault/retry tests were mocked; final live coverage was exactly two cases. Minor nonblockers remain documented.
+
+Acceptance stop condition met; autonomous loop stopped and all development/verifier workers finished. Main local demo remains running. Final handover commit contains documentation, retained probes and independent adjudication only.

@@ -1,0 +1,74 @@
+{
+  "candidate": "16632d095ea01f20e856e721119dcf3d08324c19",
+  "label": "Separately adjudicated EXPOSED F-series regression oracle; original final_holdout.json preserved",
+  "independence": "Fresh integrated verifier reviewed all five original fixture observations, written requirements, ontology and versioned runbooks. This is adjudication of already exposed regression cases, not new untouched holdout evidence. Production output was inspected to identify disputed checks, but the decisions below follow observation semantics and written policy rather than defining correctness by production behavior.",
+  "original_oracle": "evals/expected/final_holdout.json",
+  "adjudication": [
+    {
+      "case_id": "F02",
+      "change": "disposition: escalate -> check_required; retain captured state, pending/amount-gap requirements and prohibition of aligned closure/multiple successful captures",
+      "basis": "The observations supply one 40 EUR successful capture, a different 60 EUR pending capture and a 100 EUR processing provider snapshot. These are incomplete capture progression, not mutually conflicting authoritative terminal outcomes or multiple successful captures. payment-state v1.0.0 escalation item 2 requests a read-only provider-record check for incomplete amount/status evidence; item 3 reserves escalation for conflicting authoritative records or multiple distinct captures. support-triage v1.0.0 says discrepancies need safe read-only checks and escalation is for genuine conflicting financial evidence. Requirements demand appropriate uncertainty and useful next checks, not automatic escalation. The supported answer must still distinguish 40 EUR captured from 100 EUR expected/authorized and must not close as fully paid. A pending additional capture supplies no evidence of an excess or unintended second successful charge.",
+      "references": ["AUTONOMOUS_BUILD_PROMPT.txt:97-108,181-190", "evals/final_holdout/prepare.py:64-70", "knowledge/runbooks/payment-state.yaml:20-23", "knowledge/runbooks/support-triage.yaml:12-20"]
+    },
+    {
+      "case_id": "F03",
+      "change": "Remove app_discrepancy from global forbidden_rules; instead forbid the affirmative later-display-discrepancy sentence and require an explicitly cited ordering unknown",
+      "basis": "The offset-naive failed screenshot cannot be placed after the offset-aware capture or succeeded screenshot; neither later arrival nor event-ID ordering establishes business order. An affirmative current display discrepancy is therefore forbidden. Asking support to read a fresh application observation is nevertheless the correct safe next check. applied_rules currently collects rule IDs from next_checks as well as factual discrepancies; a globally forbidden ID confounds a procedure label with an asserted fact. This correction does not permit an affirmative discrepancy claim. It preserves state/disposition and prohibitions on out-of-order, aligned closure and causal notification hypotheses, and adds a direct assertion-content prohibition and cited ordering-unknown requirement. Manual review also requires the discrepancies section to remain empty for this fixture.",
+      "references": ["AUTONOMOUS_BUILD_PROMPT.txt:102-108,181-186", "evals/final_holdout/prepare.py:72-80", "knowledge/ontology.yaml:41,62-64", "knowledge/runbooks/webhook-evidence.yaml:12-15", "src/domain/rules.py:281-283"]
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "F01",
+      "payment_id": "pay_9e52d7a1",
+      "payment_state": "captured",
+      "disposition": "no_escalation",
+      "required_rules": ["capture_success", "duplicate_delivery", "aligned_observations"],
+      "forbidden_rules": ["multiple_captures", "capture_amount_mismatch", "notification_unresolved", "app_discrepancy"],
+      "required_claims": [{"section": "confirmed_facts", "text_contains": "48.25 GBP", "evidence_ids": ["fv1-capture-a"]}],
+      "semantic_outcome": "Exactly one distinct observed successful capture cap-f1 for 48.25 GBP; two observations of it are not 96.50 GBP or two captures. The 60 GBP authorization is not the captured amount or another charge. Same-ID attempt observations are one attempt whose later status succeeded. A later 204 retry recovers the earlier notification failure. Latest application success agrees and complete evidence permits closing without escalation. HTTP delivery does not prove downstream processing or technical causality."
+    },
+    {
+      "case_id": "F02",
+      "payment_id": "pay_28c1f0b6",
+      "payment_state": "captured",
+      "disposition": "check_required",
+      "required_rules": ["capture_success", "capture_pending", "capture_amount_mismatch"],
+      "forbidden_rules": ["multiple_captures", "aligned_observations"],
+      "required_claims": [{"section": "confirmed_facts", "text_contains": "40.00 EUR", "evidence_ids": ["fv2-capture-a"]}],
+      "semantic_outcome": "40 EUR is successfully captured; the separate 60 EUR pending capture cannot be counted as captured or as a second successful charge. 100 EUR was authorized/expected, not established as fully captured. The 40 versus 100 monetary gap requires a read-only reconciliation of intended amount, capture ledger and partial-capture policy; escalation is not mandated without conflicting authoritative terminal records, an overcapture or multiple successful captures. Do not present the payment as fully paid or resolved merely because the app says succeeded. No refund/retry action or invented reason."
+    },
+    {
+      "case_id": "F03",
+      "payment_id": "pay_76d9a305",
+      "payment_state": "captured",
+      "disposition": "check_required",
+      "required_rules": ["capture_success", "app_order_unknown", "event_order_unknown"],
+      "forbidden_rules": ["out_of_order_events", "aligned_observations", "notification_hypothesis"],
+      "forbidden_text": ["A later application observation reports"],
+      "required_claims": [
+        {"section": "confirmed_facts", "text_contains": "31.75 CAD", "evidence_ids": ["fv3-capture"]},
+        {"section": "unknowns", "text_contains": "latest status cannot be selected", "evidence_ids": ["fv3-screen-a", "fv3-screen-b"]}
+      ],
+      "semantic_outcome": "31.75 CAD is captured. An offset-naive failed screen and offset-aware succeeded screen cannot be ordered across sources, even though failure's observed_at is later. Do not assert the current screen is failed or has become stale: there must be no affirmative discrepancy finding. A fresh-observation/log check is appropriate even if its procedural rule label is app_discrepancy. Two business events at the exact same time with different received times do not prove which event happened first or out-of-order delivery. Both 200 deliveries only establish acknowledgement; request timezone/processing evidence read-only, without inventing a technical cause."
+    },
+    {
+      "case_id": "F04",
+      "payment_id": "pay_5f0ab8c2",
+      "payment_state": "unknown",
+      "disposition": "check_required",
+      "required_rules": ["missing_financial_evidence", "attempt_observed", "delivery_observed"],
+      "forbidden_rules": ["attempt_failure", "provider_canceled", "aligned_observations", "capture_success"],
+      "semantic_outcome": "The visible attempt failed with recorded card_declined, and its authorization was declined. A delivered payment_failed notification and failed app screen do not prove the payment globally failed or that nothing was captured elsewhere. Capture and attempt histories are explicitly incomplete; current requires_payment_method alone cannot establish no capture. State remains unknown with a read-only provider history check. Do not blame network/insufficient funds or promise no debit."
+    },
+    {
+      "case_id": "F05",
+      "payment_id": "pay_14b6e9d0",
+      "payment_state": "failed",
+      "disposition": "no_escalation",
+      "required_rules": ["provider_canceled", "aligned_observations"],
+      "forbidden_rules": ["capture_success", "authorization_only", "app_discrepancy", "multiple_captures"],
+      "semantic_outcome": "Current canceled snapshot and explicitly complete no-capture history support failed/canceled outcome in the supplied window. Same authorization ID's later expired observation supersedes earlier authorized hold: do not say an active hold remains or two authorizations exist. Latest failed app screen agrees. Close without automatic escalation, without extending this into a bank settlement/refund guarantee or inventing why the provider canceled. The observed authentication_required attempt code is not proof of cancellation causality."
+    }
+  ]
+}
