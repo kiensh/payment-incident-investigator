@@ -1,5 +1,7 @@
 # Payment Incident Investigator
 
+Repository: [kiensh/payment-incident-investigator](https://github.com/kiensh/payment-incident-investigator) · **private** (reviewers need access).
+
 A read-only, evidence-grounded support workspace for a payment that looks different across systems. Built as an interview-ready, production-minded MVP — **not a production payment service**.
 
 Ask: “The customer saw payment failed, but another system says it completed. What happened, what remains uncertain, and what should support check next?”
@@ -10,9 +12,11 @@ The workspace separates **facts, discrepancies, hypotheses, unknowns and safe ch
 
 ## Verification and current review — 2026-11-15
 
-The build-time verification of `16632d0` found no blocker in its tested scope. A later user-requested all-case and AI-engineering review found additional edge cases outside that suite, including premature inquiry closure and incomplete tool-JSON acceptance. These remain unfixed; see [current engineering review](docs/ENGINEERING_REVIEW.md). The final repository has **208 passing Python tests**, **28 frontend tests**, **7 mocked Chromium tests**, and passing typechecks/build. Final API baselines passed 20 development and 10 exposed regression cases; five additional cases scored 3/5 against their preserved original oracle and 5/5 after a separately documented independent adjudication. Final real-UI checks passed an unresolved-webhook case and a normal/recovered case. See [final acceptance record](docs/FINAL_VERIFICATION.md) for coverage and limitations—not an untouched-hold-out or production-readiness claim.
+The build-time verification of `16632d0` found no blocker in its tested scope. A later user-requested all-case and AI-engineering review found additional edge cases outside that suite, including premature inquiry closure and incomplete tool-JSON acceptance. These remain unfixed; see [current engineering review](docs/ENGINEERING_REVIEW.md). The final repository has **208 passing Python tests**, **30 frontend tests**, **12 mocked Chromium tests**, and passing typechecks/build. Final API baselines passed 20 development and 10 exposed regression cases; five additional cases scored 3/5 against their preserved original oracle and 5/5 after a separately documented independent adjudication. Final real-UI checks passed an unresolved-webhook case and a normal/recovered case. See [final acceptance record](docs/FINAL_VERIFICATION.md) for coverage and limitations—not an untouched-hold-out or production-readiness claim.
 
-**Demo request budget:** the shared local ledger was last observed at **145/150** application bridge requests, leaving **5**. The independent test run ended at142; this balance can change while the app is used. Offline tests consume none. Do not rerun a full live evaluation or reset the ledger without a newly authorized budget.
+The later UI follow-up fixed short-window form reachability, result-heading visibility, modal/background scrolling and keyboard access to technical JSON. A fresh verifier exercised 1280×600, 390×420 and 844×390 in the actual mock UI. Those UI fixes do not resolve the separate financial/agent-design findings above.
+
+**Demo request budget:** the existing local ledger has reached **150/150** application bridge requests. Live inference on this checkout requires a newly authorized allowance; do not reset or delete the ledger. Offline/mock mode consumes no model requests and remains usable. The UI follow-up used zero live requests.
 
 ## Quick start — no model service required
 
@@ -28,7 +32,7 @@ INVESTIGATOR_MODE=mock uv run uvicorn src.api:app --host 127.0.0.1 --port 8000
 
 Open **http://127.0.0.1:8000**. This serves the built UI and API from one backend. The UI clearly identifies **mock / rules-only** mode; no bridge requests are made. A missing prepared database produces a readable setup error, not an automatic rebuild on every request.
 
-The original ~300 KB source archive is committed under `data/raw`, so default preparation is offline and repeatable after dependencies are installed. See its provenance/license metadata and generated `data/prepared/quality_report.json` for the exact source checksum and observed quality results. The preparer never executes archive content.
+The original ~300 KB source archive is committed under `data/raw`, so default preparation is offline and repeatable after dependencies are installed. See its [license notice](data/raw/LICENSE_NOTICE.md), provenance metadata and generated `data/prepared/quality_report.json` for the exact source checksum and observed quality results. The preparer never executes archive content.
 
 For frontend development, run the backend plus:
 
