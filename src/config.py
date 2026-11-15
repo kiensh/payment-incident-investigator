@@ -19,6 +19,7 @@ class Settings:
     model_name: str = ""
     model_api_key: str = field(default="", repr=False)
     budget_path: Path = ROOT / "artifacts/bridge-budget.sqlite"
+    budget_scope: Literal["persistent", "session"] = "persistent"
     request_limit: int = 150
     request_timeout: float = 60
     max_model_calls: int = 6
@@ -26,6 +27,8 @@ class Settings:
     def __post_init__(self) -> None:
         if self.mode not in ("mock", "live"):
             raise ValueError("INVESTIGATOR_MODE must be mock or live.")
+        if self.budget_scope not in ("persistent", "session"):
+            raise ValueError("INVESTIGATOR_BUDGET_SCOPE must be persistent or session.")
         try:
             url = urlsplit(self.model_base_url)
             port = url.port  # Accessing .port validates numeric syntax and range.
@@ -50,6 +53,9 @@ class Settings:
         mode = os.getenv("INVESTIGATOR_MODE", "mock")
         if mode not in ("mock", "live"):
             raise ValueError("INVESTIGATOR_MODE must be mock or live.")
+        scope = os.getenv("INVESTIGATOR_BUDGET_SCOPE", "persistent")
+        if scope not in ("persistent", "session"):
+            raise ValueError("INVESTIGATOR_BUDGET_SCOPE must be persistent or session.")
         return cls(
             mode="live" if mode == "live" else "mock",
             database=Path(os.getenv("INVESTIGATOR_DB", str(ROOT / "data/prepared/incidents.sqlite"))),
@@ -57,6 +63,7 @@ class Settings:
             model_name=os.getenv("ANTHROPIC_MODEL", ""),
             model_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
             budget_path=Path(os.getenv("INVESTIGATOR_BUDGET_PATH", str(ROOT / "artifacts/bridge-budget.sqlite"))),
+            budget_scope="session" if scope == "session" else "persistent",
             request_limit=int(os.getenv("INVESTIGATOR_REQUEST_LIMIT", "150")),
             request_timeout=float(os.getenv("INVESTIGATOR_TIMEOUT_SECONDS", "60")),
         )

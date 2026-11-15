@@ -91,7 +91,7 @@ def create_app(settings: Settings | None = None, static_dir: Path | None = None)
     app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "[::1]", "testserver"])
     repository = Repository(settings.database)
-    budget = RequestBudget(settings.budget_path, settings.request_limit) if settings.mode == "live" else None
+    budget = RequestBudget(settings.budget_path, settings.request_limit, settings.budget_scope) if settings.mode == "live" else None
     slots = asyncio.Semaphore(2)
     app.state.settings = settings
 
@@ -149,7 +149,7 @@ def create_app(settings: Settings | None = None, static_dir: Path | None = None)
             payment, evidence = snapshot
             return await investigate(payment, evidence, body.question, client, settings.max_model_calls)
         except BudgetExceeded:
-            return error(429, "budget_exhausted", "The configured bridge request budget is exhausted. Offline mock checks remain available.")
+            return error(429, "budget_exhausted", f"The configured {settings.budget_scope} model request budget is exhausted. Offline mock checks remain available.")
         except BridgeFailure as exc:
             return error(502, "bridge_unavailable", str(exc), exc.retryable)
         except AgentFailure as exc:

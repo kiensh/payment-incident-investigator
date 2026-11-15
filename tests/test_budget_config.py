@@ -8,24 +8,26 @@ from src.agent.budget import BudgetExceeded, RequestBudget
 from src.config import Settings
 
 
-def test_budget_survives_clients_and_counts_failed_requests(tmp_path: Path):
-    budget = RequestBudget(tmp_path / "ledger.sqlite", 2)
+@pytest.mark.parametrize("scope", ["persistent", "session"])
+def test_budget_survives_clients_and_counts_failed_requests(tmp_path: Path, scope):
+    budget = RequestBudget(tmp_path / "ledger.sqlite", 2, scope)
     first = budget.reserve()
     budget.finish(first, "infrastructure_error", 12, {})
-    second_client = RequestBudget(tmp_path / "ledger.sqlite", 2)
+    second_client = RequestBudget(tmp_path / "ledger.sqlite", 2, scope)
     second_client.reserve()
     assert second_client.count() == 2
     with pytest.raises(BudgetExceeded):
         budget.reserve()
 
 
-def test_parallel_reservations_never_exceed_limit(tmp_path: Path):
+@pytest.mark.parametrize("scope", ["persistent", "session"])
+def test_parallel_reservations_never_exceed_limit(tmp_path: Path, scope):
     path = tmp_path / "ledger.sqlite"
-    budget = RequestBudget(path, 4)
+    budget = RequestBudget(path, 4, scope)
 
     def reserve():
         try:
-            return RequestBudget(path, 4).reserve()
+            return RequestBudget(path, 4, scope).reserve()
         except BudgetExceeded:
             return None
 
@@ -54,7 +56,8 @@ def config_env(monkeypatch, tmp_path):
     monkeypatch.setattr("src.config.ROOT", tmp_path)
     for name in ("INVESTIGATOR_MODE", "INVESTIGATOR_DB", "ANTHROPIC_BASE_URL",
                  "ANTHROPIC_MODEL", "ANTHROPIC_API_KEY", "INVESTIGATOR_BUDGET_PATH",
-                 "INVESTIGATOR_REQUEST_LIMIT", "INVESTIGATOR_TIMEOUT_SECONDS"):
+                 "INVESTIGATOR_BUDGET_SCOPE", "INVESTIGATOR_REQUEST_LIMIT",
+                 "INVESTIGATOR_TIMEOUT_SECONDS"):
         monkeypatch.delenv(name, raising=False)
     return monkeypatch
 
@@ -67,6 +70,7 @@ def test_standard_model_and_application_environment_variables(config_env, tmp_pa
         "ANTHROPIC_MODEL": "configured-model-id",
         "ANTHROPIC_API_KEY": "synthetic-config-key",
         "INVESTIGATOR_BUDGET_PATH": str(tmp_path / "requests.sqlite"),
+        "INVESTIGATOR_BUDGET_SCOPE": "session",
         "INVESTIGATOR_REQUEST_LIMIT": "12",
         "INVESTIGATOR_TIMEOUT_SECONDS": "30.5",
     }
@@ -79,6 +83,7 @@ def test_standard_model_and_application_environment_variables(config_env, tmp_pa
     assert settings.model_name == values["ANTHROPIC_MODEL"]
     assert settings.model_api_key == values["ANTHROPIC_API_KEY"]
     assert settings.budget_path == tmp_path / "requests.sqlite"
+    assert settings.budget_scope == "session"
     assert settings.request_limit == 12
     assert settings.request_timeout == 30.5
     assert values["ANTHROPIC_API_KEY"] not in repr(settings)
@@ -111,6 +116,7 @@ def test_renamed_settings_reuse_existing_default_request_ledger(config_env, tmp_
     assert settings.request_limit == 150
     assert settings.request_timeout == 60
     assert settings.budget_path == path
+    assert settings.budget_scope == "persistent"
     assert RequestBudget(settings.budget_path, settings.request_limit).count() == 1
 
 
@@ -119,6 +125,8 @@ def test_renamed_settings_reuse_existing_default_request_ledger(config_env, tmp_
     ("INVESTIGATOR_REQUEST_LIMIT", "151"),
     ("INVESTIGATOR_TIMEOUT_SECONDS", "121"),
     ("INVESTIGATOR_TIMEOUT_SECONDS", "nan"),
+    ("INVESTIGATOR_BUDGET_SCOPE", "disabled"),
+    ("INVESTIGATOR_BUDGET_SCOPE", ""),
 ])
 def test_standard_environment_names_preserve_configuration_boundaries(config_env, name, value):
     config_env.setenv(name, value)

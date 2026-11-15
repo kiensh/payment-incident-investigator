@@ -16,7 +16,7 @@ The build-time verification of `16632d0` found no blocker in its tested scope. A
 
 The later UI follow-up fixed short-window form reachability, result-heading visibility, modal/background scrolling and keyboard access to technical JSON. A fresh verifier exercised 1280×600, 390×420 and 844×390 in the actual mock UI. Those UI fixes do not resolve the separate financial/agent-design findings above.
 
-**Demo request budget:** the existing local ledger has reached **150/150** application bridge requests. Live inference on this checkout requires a newly authorized allowance; do not reset or delete the ledger. Offline/mock mode consumes no model requests and remains usable. The UI follow-up used zero live requests.
+**Demo request budget:** the original 150-request **persistent** allowance is exhausted. For local testing, explicitly opt into `INVESTIGATOR_BUDGET_SCOPE=session` to get a fresh capped allowance per server process without deleting audit history; see [live mode](#live-agent-mode--local-endpoints-only). Persistent accounting remains the default. Offline/mock mode consumes no model requests. The UI follow-up used zero live requests.
 
 ## Quick start — no model service required
 
@@ -52,23 +52,34 @@ For example, the existing local Copilot bridge uses `http://localhost:8765/cc`, 
 curl --fail --silent http://localhost:8765/cc/v1/models
 ```
 
-This installed endpoint advertises **`claude-opus-5.5`** (the dot is intentional). Use the exact discovered ID; it ignores client auth, so an empty `ANTHROPIC_API_KEY` selects the **public sentinel** `copilot-bridge`, not a secret:
+This installed endpoint advertises **`claude-opus-5.5`** (the dot is intentional). Use the exact discovered ID; it ignores client auth, so an empty `ANTHROPIC_API_KEY` selects the **public sentinel** `copilot-bridge`, not a secret. For **single-worker local development**, explicitly opt into a capped session:
 
 ```sh
-INVESTIGATOR_MODE=live ANTHROPIC_BASE_URL=http://localhost:8765/cc \
-  ANTHROPIC_MODEL=claude-opus-5.5 ANTHROPIC_API_KEY= \
-  uv run uvicorn src.api:app --host 127.0.0.1 --port 8000
+env -u ANTHROPIC_CUSTOM_HEADERS INVESTIGATOR_MODE=live \
+  INVESTIGATOR_BUDGET_SCOPE=session INVESTIGATOR_REQUEST_LIMIT=150 \
+  ANTHROPIC_BASE_URL=http://localhost:8765/cc ANTHROPIC_API_KEY= \
+  ANTHROPIC_MODEL=claude-opus-5.5 \
+  uv run --frozen python -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 ```
+
+Stopping and restarting this command starts a fresh capped allowance; refreshing the browser does not. The entire request history remains in the ledger, and upstream quotas still apply.
 
 Alternatively copy `.env.example` to `.env`, configure mode/base URL/model, and restrict the file (`chmod 600 .env`) before adding any credential. **Shell environment variables override `.env`**, including `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY`; the commands here explicitly select the example local endpoint even if your shell configures another Anthropic service. `ANTHROPIC_AUTH_TOKEN`, Anthropic profiles and workload identity federation (WIF) are not used. An explicit API key or sentinel prevents ambient SDK credential discovery. The browser never sees model credentials or contacts the endpoint. Inherited `ANTHROPIC_CUSTOM_HEADERS` are deliberately rejected before transport; if your shell sets them for another application, launch this backend with `env -u ANTHROPIC_CUSTOM_HEADERS` rather than sharing those headers. Environment proxy routing and redirects remain disabled.
 
 There is **no direct public API support or automatic external-provider/mock fallback**. Investigations allow at most six model calls. An unavailable/rate-limited endpoint, malformed protocol response, or unsupported conclusion fails visibly. Step-limit errors include safe tool/count/validation diagnostics, not private reasoning. Retry means rerun the investigation, not retry payment. See [bridge protocol and accounting](docs/bridge.md) for verified details of the example service.
 
-`INVESTIGATOR_REQUEST_LIMIT` defaults to **150 total application model requests** and cannot exceed 150. Failed calls count, and the ignored persistent ledger remains **`artifacts/bridge-budget.sqlite`** (configured by `INVESTIGATOR_BUDGET_PATH`). SDK retries are disabled. Do not change the ledger path, remove it or reset it to bypass the build budget. `INVESTIGATOR_TIMEOUT_SECONDS` defaults to 60 seconds (allowed range: 1–120). The shared bridge's internal upstream retries, actual monetary costs and coding-agent usage are not covered by that counter. Cache fields are reported only when exposed; no cost savings are claimed.
+### Request budget scopes
+
+`INVESTIGATOR_REQUEST_LIMIT` defaults to **150 application model requests** and must remain between 1 and 150; there is no uncapped mode. `INVESTIGATOR_BUDGET_SCOPE` selects what counts against that cap:
+
+- **`persistent` (default):** all stored requests count across process restarts, including historical and session-scoped requests.
+- **`session` (opt-in):** only requests with the current Python process's session ID count. Each new process/restart, including an auto-reload replacement, gets a fresh allowance. Browser refreshes do not reset it. All clients, app instances and evaluation cases in the same process share that allowance.
+
+Session scope is for single-worker local development: multiple workers have separate allowances, so it is **not a global spending control**. Both scopes preserve all audit rows in the same ignored **`artifacts/bridge-budget.sqlite`** (`INVESTIGATOR_BUDGET_PATH`). Do not change paths, delete or truncate the ledger to reset usage; use the explicit session opt-in for local testing. Failed calls count, SDK retries remain disabled, and the six-call investigation limit still applies. `INVESTIGATOR_TIMEOUT_SECONDS` defaults to 60 seconds (allowed range: 1–120). The shared bridge's internal upstream retries, actual monetary costs and coding-agent usage are not covered by that counter. Cache fields are reported only when exposed; no cost savings are claimed.
 
 ### Configuration migration
 
-Rename existing `.env` entries and shell exports; **there are no legacy aliases**. For the installed bridge, the old root URL must become the full SDK base URL shown below. This naming cleanup does not change model IDs, reset the existing ledger or authorize any additional live requests.
+Rename existing `.env` entries and shell exports; **there are no legacy aliases**. For the installed bridge, the old root URL must become the full SDK base URL shown below. The rename does not change model IDs or erase ledger history. The separate `INVESTIGATOR_BUDGET_SCOPE` setting defaults to `persistent`; choose `session` explicitly for per-process local testing.
 
 | Previous name | Current name |
 | --- | --- |
@@ -111,13 +122,14 @@ npm --prefix web audit
 # End-to-end rules-only baseline through the actual FastAPI entry point
 uv run python -m evals.run --mode mock --output artifacts/eval-dev-mock.json
 
-# Live development evaluation (consumes the existing request budget; no new allowance)
-ANTHROPIC_BASE_URL=http://localhost:8765/cc ANTHROPIC_MODEL=claude-opus-5.5 \
-  ANTHROPIC_API_KEY= uv run python -m evals.run \
-  --mode live --output artifacts/eval-dev-live.json
+# Live development evaluation (explicit capped session; audit history preserved)
+env -u ANTHROPIC_CUSTOM_HEADERS INVESTIGATOR_BUDGET_SCOPE=session \
+  INVESTIGATOR_REQUEST_LIMIT=150 ANTHROPIC_BASE_URL=http://localhost:8765/cc \
+  ANTHROPIC_API_KEY= ANTHROPIC_MODEL=claude-opus-5.5 \
+  uv run --frozen python -m evals.run --mode live --output artifacts/eval-dev-live.json
 ```
 
-Use `--ids pay_6a73b902,pay_b2407e6d` for a bounded subset. Each case gets a temporary evidence database and a fresh application/tool session. The persistent model-request budget is shared across cases. Reports distinguish incorrect answers from infrastructure failures and preserve returned outputs/tool traces for review. Rules-only results are not presented as proof of model integration; mocked browser tests are not presented as live-agent tests.
+Use `--ids pay_6a73b902,pay_b2407e6d` for a bounded subset. Each case gets a temporary evidence database and a fresh application/tool session, but **not** a new request allowance: all cases in the same evaluation process share the selected budget scope. Reports distinguish incorrect answers from infrastructure failures and preserve returned outputs/tool traces for review. Rules-only results are not presented as proof of model integration; mocked browser tests are not presented as live-agent tests.
 
 Independent hold-out setup, commands and contamination status are recorded in [evaluation notes](evals/README.md). **Do not tune against hold-out answers and continue calling them untouched.** For actual commands/results, candidate identity, independent findings and unverified items, read [STATUS](docs/STATUS.md) and [verification record](docs/verification.md).
 
