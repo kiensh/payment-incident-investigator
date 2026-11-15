@@ -9,7 +9,7 @@ const dispositionLabels: Record<Investigation['disposition'], string> = {
 };
 
 export function ModeLabel({ mode }: { mode: 'mock' | 'live' }) {
-  return <span className={`mode-label ${mode}`}><span className="mode-dot" aria-hidden="true" />{mode === 'mock' ? 'Mock · no live model' : 'Live · bridge model'}</span>;
+  return <span className={`mode-label ${mode}`}><span className="mode-dot" aria-hidden="true" />{mode === 'mock' ? 'Mock · no live model' : 'Live model'}</span>;
 }
 
 function TextList({ items, ordered = false }: { items: string[]; ordered?: boolean }) {

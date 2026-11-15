@@ -161,7 +161,7 @@ test('renders hostile strings only as text and shows explicit live response mode
   await chooseCase(page);
   await page.getByRole('button', { name: 'Investigate payment' }).click();
   await expect(page.getByText(payload, { exact: true })).toBeVisible();
-  await expect(page.getByRole('article').getByText('Live · bridge model')).toBeVisible();
+  await expect(page.getByRole('article').getByText('Live model')).toBeVisible();
   expect(await page.evaluate(() => 'injected' in window)).toBe(false);
   await expect(page.locator('article img, article script')).toHaveCount(0);
 });

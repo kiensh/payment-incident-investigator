@@ -191,7 +191,7 @@ describe('investigation workspace (mocked API)', () => {
     render(<App />);
     expect(await screen.findByText(/No example cases are available/)).toBeInTheDocument();
     expect(screen.getByText('Service mode unavailable')).toBeInTheDocument();
-    expect(screen.queryByText('Live · bridge model')).not.toBeInTheDocument();
+    expect(screen.queryByText('Live model')).not.toBeInTheDocument();
   });
 
   it('renders untrusted response strings as text, never HTML', async () => {
