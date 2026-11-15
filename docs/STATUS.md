@@ -4,7 +4,8 @@
 - Candidate: `6de2098` independently checked; now unfrozen for confirmed fixes. Branch `feat/investigator-mvp`; no authorized remote, push blocked.
 - Live bridge requests: 98 / 150 (2026-11-15 06:48 UTC); 52 remain. Shared bridge unchanged; reserve capacity for final fresh verification.
 - Results: clean exported setup passed; 98 Python + 28 frontend + 7 mocked browser tests, both typechecks/build passed. Dev baseline 20/20 and live 20/20 (62 model calls). Independent browser: 3 live investigations (9 calls), 13 mocked checks plus edge checks, no blocking UI defects. Independent incident baseline: 7/10; selected passing subset live 7/7 (24 calls), not full hold-out success.
-- Confirmed failures: tied authorization amount conflict; untimed observation hides known later discrepancy; unresolved webhook errors incorrectly closed; inherited SDK custom headers; empty successful bridge streams produce unstructured errors; invalid bridge ports leak concurrency slots. Also harden usage metadata and remove blocked Swagger UI. See docs/verification.md.
+- Domain fixes implemented: authorization amount uncertainty, partial timestamp ordering with supported later-display citations, and unresolved webhook follow-up. 115 Python tests pass; dev baseline20/20 and exposed regressions10/10 under strengthened amount/evidence/summary scoring. No new live requests for these fixes yet.
+- Remaining confirmed failures: inherited SDK custom headers; empty successful bridge streams produce unstructured errors; invalid bridge ports leak concurrency slots. Also harden usage metadata and remove blocked Swagger UI. See docs/verification.md.
 - Hold-out status: 10 independently authored cases are now exposed regression cases because their findings will inform fixes.
 
 ## Acceptance checklist

@@ -11,6 +11,7 @@ from time import perf_counter
 
 from fastapi.testclient import TestClient
 
+from evals.support import audit_support
 from src.api import create_app
 from src.config import ROOT, Settings
 from src.storage.repository import Repository, create_database
@@ -18,8 +19,13 @@ from src.storage.repository import Repository, create_database
 SECTIONS = ("confirmed_facts", "discrepancies", "hypotheses", "unknowns", "next_checks")
 
 
-def score_result(result: dict, expected: dict) -> list[str]:
-    failures = []
+def score_result(result: dict, expected: dict, source_evidence: list[dict] | None = None) -> list[str]:
+    failures = audit_support(result)
+    if source_evidence is not None:
+        source = {record["id"]: record for record in source_evidence}
+        returned = {record["id"]: record for record in result["evidence"]}
+        if returned != source or len(returned) != len(result["evidence"]):
+            failures.append("returned evidence differs from the source snapshot")
     for field in ("payment_state", "disposition"):
         if result.get(field) != expected[field]:
             failures.append(f"{field}: expected {expected[field]}, got {result.get(field)}")
@@ -91,7 +97,7 @@ def run(database: Path, expectations: Path, output: Path, settings: Settings,
             rows.append({"payment_id": payment.id, "outcome": category,
                          "http_status": response.status_code, "error": payload})
         else:
-            failures = score_result(payload, case)
+            failures = score_result(payload, case, [record.model_dump(mode="json") for record in evidence])
             rows.append({"payment_id": payment.id, "outcome": "incorrect" if failures else "pass",
                          "failures": failures, "result": payload})
         print(f"{payment.id}: {rows[-1]['outcome']}", flush=True)

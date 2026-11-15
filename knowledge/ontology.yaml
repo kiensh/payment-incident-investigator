@@ -1,4 +1,4 @@
-version: '1.0.0'
+version: '1.1.0'
 provider_model: stripe-payment-intent-inspired-demo
 scope: Read-only evidence interpretation; not a live provider connector or settlement ledger.
 concepts:
@@ -49,6 +49,7 @@ rules:
   capture_failed: Failed capture is distinct from failed payment or reversed authorization.
   authorization_only: An authorization does not establish capture.
   authorization_observed: Authorization records describe holds and declines, not additional charges.
+  authorization_amount_conflict: Unordered authorization amount or currency conflicts prevent quoting an exact held amount.
   attempt_observed: Attempt outcomes apply to attempts, not a count of charges.
   attempt_failure: Explicit current provider failure plus failed attempts can establish an observed failed payment attempt.
   provider_canceled: A current canceled provider snapshot establishes canceled payment state absent conflicting success.
@@ -68,5 +69,6 @@ rules:
   event_order_unknown: Tied or unavailable event clocks do not establish an ordering.
   missing_reference: Missing related evidence limits interpretation.
   notification_hypothesis: Delivery trouble may explain a stale application status, but causality needs application logs.
+  notification_unresolved: Failed notifications without a provably later delivery success need a read-only check even when payment and display agree.
   clock_inversion: A received-before-occurred record signals a clock-quality issue, not invented event ordering.
   aligned_observations: Sufficient coherent financial and application observations need no escalation.

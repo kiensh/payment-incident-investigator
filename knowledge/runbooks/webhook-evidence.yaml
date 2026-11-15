@@ -1,5 +1,5 @@
 id: webhook-evidence
-version: '1.0.0'
+version: '1.0.1'
 title: Interpret delivery evidence
 categories: [webhook, delivery, duplicate, notification, event]
 applicability: Customer or application status differs from provider records, or several notifications appear for one payment.
@@ -20,6 +20,7 @@ supported_conclusions:
 escalation:
   - No escalation merely for repeated delivery when unique capture records and application state are consistent.
   - Ask the integration owner to inspect delivery and processing logs for an unresolved status mismatch.
+  - Failed deliveries without a provably later successful delivery require a read-only webhook check even when capture and the receipt agree.
   - Do not resend webhooks, change endpoints or execute any payment action from this investigator.
 sources:
   - https://docs.stripe.com/webhooks

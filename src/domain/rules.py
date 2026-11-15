@@ -25,10 +25,12 @@ def _latest(items: list[Evidence]) -> list[Evidence]:
     if len(items) < 2:
         return items
     times = [_time(item.occurred_at) for item in items]
-    if any(value is None for value in times):
+    known = [value for value in times if value is not None]
+    if not known:
         return items
-    latest = max(value for value in times if value is not None)
-    return [item for item in items if _time(item.occurred_at) == latest]
+    latest = max(known)
+    # An untimed record may be latest, but cannot make an older known record latest.
+    return [item for item in items if _time(item.occurred_at) in (None, latest)]
 
 
 def _group(items: list[Evidence], field: str) -> dict[str, list[Evidence]]:
@@ -123,10 +125,18 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
     for authorization_id, records in _group(by_kind["Authorization"], "authorization_id").items():
         latest = _latest(records)
         statuses = {item.data["status"] for item in latest}
+        amounts = {(Decimal(item.data["amount"]), item.data["currency"]) for item in latest}
+        if len(amounts) > 1:
+            add("unknowns", "authorization_amount_conflict",
+                f"The current amount or currency of authorization {authorization_id} is uncertain: its unordered records disagree. No exact held amount can be selected from these records.", latest)
+            add("next_checks", "authorization_amount_conflict",
+                "Ask payment operations to read current authoritative authorization records and reconcile the conflicting amount or currency before quoting an exact hold amount.", latest)
+            result.disposition = "escalate"
         if len(statuses) == 1:
             chosen = latest[0]
+            amount_detail = f" for {_amount(chosen)}" if len(amounts) == 1 else " (amount unresolved)"
             add("confirmed_facts", "authorization_observed",
-                f"Authorization {authorization_id} is recorded as {chosen.data['status']} for {_amount(chosen)}; an authorization is not a capture.", latest)
+                f"Authorization {authorization_id} is recorded as {chosen.data['status']}{amount_detail}; an authorization is not a capture.", latest)
             if chosen.data["status"] == ontology["policies"]["active_authorization_status"]:
                 active_auth.extend(latest)
         else:
@@ -226,27 +236,34 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
             "Conflicting application statuses have equal, missing, or non-comparable timestamps; the latest status cannot be selected from arrival order or record IDs.", latest_apps)
         check()
         app_unresolved = True
-    elif latest_apps:
-        app = latest_apps[0]
+    if latest_apps:
         expected_statuses: dict[str, set[str]] = {
             "captured": {"succeeded"}, "failed": {"failed"},
             "authorized": {"authorized", "pending", "processing"}, "unknown": set(),
         }
         expected_status = expected_statuses[result.payment_state]
-        if expected_status and app.data["status"] not in expected_status:
+        for status, status_apps in _group(latest_apps, "status").items():
+            if not expected_status or status in expected_status:
+                continue
             authoritative = successes if successes else ([snapshot] if snapshot is not None else active_auth)
             times = [_time(item.occurred_at) for item in authoritative]
             reference_time = max((value for value in times if value is not None), default=None)
-            app_time = _time(app.occurred_at)
-            if app_time is not None and reference_time is not None and all(value is not None for value in times) and app_time > reference_time:
+            app_times = [_time(item.occurred_at) for item in status_apps]
+            later_apps = [item for item in status_apps if reference_time is not None
+                          and (time := _time(item.occurred_at)) is not None and time > reference_time]
+            if later_apps and all(value is not None for value in times):
                 add("discrepancies", "app_discrepancy",
-                    f"A later application observation reports {app.data['status']} while provider evidence establishes {result.payment_state}. The display discrepancy is established; its cause is not.", latest_apps + authoritative)
-            elif app_time is not None and reference_time is not None and app_time < reference_time:
+                    f"A later application observation reports {status} while provider evidence establishes {result.payment_state}. The display discrepancy is established; its cause is not.", later_apps + authoritative)
+                untimed = [item for item in status_apps if _time(item.occurred_at) is None]
+                if untimed:
+                    add("unknowns", "app_order_unknown",
+                        "Additional application observations lack comparable timestamps; their ordering remains unknown and does not erase the separately evidenced later display discrepancy.", untimed)
+            elif reference_time is not None and all(time is not None and time < reference_time for time in app_times):
                 add("unknowns", "app_precedes_financial",
-                    "The differing application status predates the financial evidence. A current display discrepancy cannot be established without a newer application observation.", latest_apps + authoritative)
+                    "The differing application status predates the financial evidence. A current display discrepancy cannot be established without a newer application observation.", status_apps + authoritative)
             else:
                 add("unknowns", "app_order_unknown",
-                    "The differing application status cannot be ordered after the financial evidence because timestamps are tied, absent, or lack comparable timezones.", latest_apps + authoritative)
+                    "The differing application status cannot be ordered after the financial evidence because timestamps are tied, absent, or lack comparable timezones.", status_apps + authoritative)
             app_unresolved = True
             check()
     else:
@@ -268,6 +285,19 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
         if len(distinct_deliveries) > 1:
             add("confirmed_facts", "duplicate_delivery",
                 f"Event {event_id} was delivered or attempted repeatedly under the same event ID. Repeated delivery is not an additional captured charge.", records)
+        failed_for_event = [item for item in records if item.data["status"] == "failed"]
+        failure_times = [_time(item.occurred_at) for item in failed_for_event]
+        recovered = any(
+            (time := _time(item.occurred_at)) is not None
+            and all(failed_time is not None and time > failed_time for failed_time in failure_times)
+            for item in records if item.data["status"] == "delivered"
+        )
+        if failed_for_event and not recovered:
+            add("unknowns", "notification_unresolved",
+                f"Failed webhook deliveries for event {event_id} have no provably later successful delivery in the supplied records. Notification resolution is unconfirmed; this does not reverse captured funds.", records)
+            add("next_checks", "notification_unresolved",
+                "Read webhook endpoint responses and subsequent delivery attempts for this event, then inspect event-processing logs. Do not resend notifications or change payment state from this investigator.", failed_for_event)
+            check()
     if failed_deliveries and app_unresolved:
         add("hypotheses", "notification_hypothesis",
             "If the application relies on these notifications, a failed delivery may have contributed to a stale display. Delivery evidence alone does not establish that causal link or a root cause.", failed_deliveries + latest_apps)
