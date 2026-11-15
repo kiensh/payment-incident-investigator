@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import math
+import os
 from time import perf_counter
 from typing import Any
 
@@ -17,23 +19,35 @@ class BridgeFailure(RuntimeError):
         self.retryable = retryable
 
 
-def numeric_usage(value: Any) -> dict:
-    """Expose numeric accounting only, never arbitrary provider strings or raw responses."""
-    if not isinstance(value, dict):
+USAGE_COUNTERS = {
+    "input_tokens", "output_tokens", "total_tokens", "cache_creation_input_tokens",
+    "cache_read_input_tokens", "ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens",
+    "cached_tokens", "reasoning_tokens", "thinking_tokens", "total_nano_aiu",
+}
+USAGE_GROUPS = {"cache_creation", "input_tokens_details", "output_tokens_details", "token_details"}
+
+
+def numeric_usage(value: Any, depth: int = 0) -> dict:
+    """Allowlisted finite accounting only: arbitrary keys can themselves contain secrets."""
+    if not isinstance(value, dict) or depth > 3:
         return {}
     result: dict[str, Any] = {}
     for key, item in value.items():
-        if not isinstance(key, str) or len(key) > 80:
-            continue
-        if isinstance(item, (int, float)) and not isinstance(item, bool):
+        if (key in USAGE_COUNTERS and isinstance(item, (int, float))
+                and not isinstance(item, bool) and item >= 0
+                and (not isinstance(item, float) or math.isfinite(item))):
             result[key] = item
-        elif isinstance(item, dict):
-            result[key] = numeric_usage(item)
+        elif key in USAGE_GROUPS and isinstance(item, dict):
+            result[key] = numeric_usage(item, depth + 1)
     return result
 
 
 class BridgeClient:
     def __init__(self, settings: Settings, budget: RequestBudget) -> None:
+        # The SDK merges this environment variable even with explicit credentials.
+        # Fail closed rather than altering process-global environment or forwarding it.
+        if os.environ.get("ANTHROPIC_CUSTOM_HEADERS", "").strip():
+            raise BridgeFailure("Inherited SDK custom headers are not allowed for this bridge. Start the backend with ANTHROPIC_CUSTOM_HEADERS unset.", False)
         self.settings = settings
         self.budget = budget
         self.model = settings.bridge_model
@@ -88,7 +102,7 @@ class BridgeClient:
             raise BridgeFailure(f"The local bridge returned HTTP {exc.status_code}; no financial action occurred.", exc.status_code >= 500) from exc
         except (anthropic.APIConnectionError, TimeoutError) as exc:
             raise BridgeFailure("The local bridge could not complete the request in time. No alternative provider was used.") from exc
-        except (ValueError, anthropic.APIResponseValidationError) as exc:
+        except (ValueError, AssertionError, anthropic.APIResponseValidationError) as exc:
             raise BridgeFailure("The bridge returned an invalid or incomplete response.") from exc
         finally:
             self.budget.finish(request_id, status, round((perf_counter() - started) * 1000, 2), usage)

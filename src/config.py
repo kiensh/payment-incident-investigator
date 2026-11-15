@@ -26,11 +26,17 @@ class Settings:
     def __post_init__(self) -> None:
         if self.mode not in ("mock", "live"):
             raise ValueError("INVESTIGATOR_MODE must be mock or live.")
-        url = urlsplit(self.bridge_url)
+        try:
+            url = urlsplit(self.bridge_url)
+            port = url.port  # Accessing .port validates numeric syntax and range.
+        except ValueError as exc:
+            raise ValueError("Bridge URL has an invalid host or port.") from exc
         if (url.hostname not in ("localhost", "127.0.0.1", "::1")
-                or url.scheme not in ("http", "https") or url.username or url.password
-                or url.query or url.fragment or url.path not in ("", "/")):
-            raise ValueError("Bridge URL must be a loopback HTTP(S) origin with no credentials or path.")
+                or url.scheme not in ("http", "https")
+                or url.username is not None or url.password is not None
+                or url.query or url.fragment or url.path not in ("", "/")
+                or port == 0 or any(ord(char) < 33 for char in self.bridge_url)):
+            raise ValueError("Bridge URL must be a loopback HTTP(S) origin with a valid port and no credentials or path.")
         if not 1 <= self.request_limit <= 150:
             raise ValueError("Bridge request limit must be between 1 and 150.")
         if not 1 <= self.max_model_calls <= 6 or not 1 <= self.request_timeout <= 120:

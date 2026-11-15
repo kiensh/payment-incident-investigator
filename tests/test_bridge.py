@@ -78,5 +78,20 @@ async def test_streaming_usage_is_not_double_counted(tmp_path: Path):
     await client.close()
 
 
-def test_usage_drops_untrusted_strings():
-    assert numeric_usage({"input_tokens": 9, "message": "private", "nested": {"text": "hidden", "cached": 3}}) == {"input_tokens": 9, "nested": {"cached": 3}}
+def test_usage_drops_untrusted_strings_keys_and_nonfinite_numbers():
+    assert numeric_usage({"input_tokens": 9, "message": "private", "secret-in-a-key": 17,
+                          "output_tokens": float("nan"), "cache_creation_input_tokens": float("inf"),
+                          "total_tokens": -1, "output_tokens_details": {"text": "hidden", "thinking_tokens": 3}}) == {
+        "input_tokens": 9, "output_tokens_details": {"thinking_tokens": 3}}
+
+
+def test_inherited_custom_headers_fail_closed_before_transport(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_CUSTOM_HEADERS", "Authorization: Bearer synthetic-test-secret\nX-Api-Key: synthetic-test-key\nX-Other: synthetic-test-value")
+    settings = Settings(mode="live", bridge_model="claude-opus-5.5", budget_path=tmp_path / "budget.sqlite")
+    budget = RequestBudget(settings.budget_path)
+    with pytest.raises(BridgeFailure) as caught:
+        BridgeClient(settings, budget)
+    assert "synthetic-test-secret" not in str(caught.value)
+    assert "custom headers" in str(caught.value)
+    assert not caught.value.retryable
+    assert budget.count() == 0

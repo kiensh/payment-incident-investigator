@@ -45,7 +45,7 @@ The public technical view contains actual tool names/arguments/results, applied 
 
 ## Privacy and local security
 
-No real customer data, card numbers or payment-provider credentials are required. The existing bridge owns its OAuth store; the application uses a public client-auth sentinel, not a copied token. Optional future client credentials stay in ignored `.env` files and are excluded from repr/error output. Requests cannot select bridge URLs or modes. The backend rejects non-loopback bridge origins, disables environment proxy routing and redirects, restricts browser origins/hosts, limits request bodies and concurrent investigations, and serves no-store responses. Raw upstream error bodies are not reflected.
+No real customer data, card numbers or payment-provider credentials are required. The existing bridge owns its OAuth store; the application uses a public client-auth sentinel, not a copied token. Optional future client credentials stay in ignored `.env` files and are excluded from repr/error output. Inherited SDK custom headers fail closed before transport rather than overriding this explicit credential boundary. Requests cannot select bridge URLs or modes. The backend rejects non-loopback bridge origins, disables environment proxy routing and redirects, restricts browser origins/hosts, limits request bodies and concurrent investigations, and serves no-store responses. Raw upstream error bodies are not reflected.
 
 This remains a **local, single-user MVP**. It is not authenticated or multi-tenant. Loopback binding and Origin checks are not a replacement for authorization, quotas or OS process isolation. Do not expose its port, run it against real customer data, or publish it as a production payment service.
 

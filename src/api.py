@@ -83,7 +83,7 @@ class InvestigationResponse(Analysis):
 
 def create_app(settings: Settings | None = None, static_dir: Path | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
-    app = FastAPI(title="Payment Incident Investigator", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None)
+    app = FastAPI(title="Payment Incident Investigator", version="0.1.0", docs_url=None, openapi_url="/api/openapi.json", redoc_url=None)
     app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "[::1]", "testserver"])
     repository = Repository(settings.database)
@@ -135,8 +135,13 @@ def create_app(settings: Settings | None = None, static_dir: Path | None = None)
             await asyncio.wait_for(slots.acquire(), timeout=0.01)
         except TimeoutError:
             return error(429, "busy", "Two investigations are already running. Try again when one completes.", True)
-        client = BridgeClient(settings, budget) if budget is not None else None
+        client: BridgeClient | None = None
         try:
+            if budget is not None:
+                try:
+                    client = BridgeClient(settings, budget)
+                except (TypeError, ValueError) as exc:
+                    raise BridgeFailure("The local bridge client configuration is invalid.", False) from exc
             payment, evidence = snapshot
             return await investigate(payment, evidence, body.question, client, settings.max_model_calls)
         except BudgetExceeded:
@@ -146,9 +151,11 @@ def create_app(settings: Settings | None = None, static_dir: Path | None = None)
         except AgentFailure as exc:
             return error(502, "unsupported_conclusion", str(exc), True)
         finally:
-            if client is not None:
-                await client.close()
-            slots.release()
+            try:
+                if client is not None:
+                    await client.close()
+            finally:
+                slots.release()
 
     built = static_dir if static_dir is not None else ROOT / "web/dist"
     if built.is_dir():

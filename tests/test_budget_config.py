@@ -33,7 +33,7 @@ def test_parallel_reservations_never_exceed_limit(tmp_path: Path):
     assert len([x for x in results if x is not None]) == budget.count() == 4
 
 
-@pytest.mark.parametrize("url", ["https://api.example.com", "http://user:secret@localhost:8765", "http://localhost:8765/path", "file:///tmp/anything", "http://localhost:8765?key=oops"])
+@pytest.mark.parametrize("url", ["https://api.example.com", "http://user:secret@localhost:8765", "http://localhost:8765/path", "file:///tmp/anything", "http://localhost:8765?key=oops", "http://localhost:notaport", "http://localhost:999999", "http://localhost:0", "http://@localhost:8765", "http://localhost:8765\n"])
 def test_external_provider_and_embedded_credentials_rejected(url):
     with pytest.raises(ValueError):
         Settings(bridge_url=url)
