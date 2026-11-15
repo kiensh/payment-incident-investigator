@@ -7,6 +7,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// jsdom does not implement the browser's native modal dialog methods.
+// jsdom does not implement layout scrolling or the native modal dialog methods.
+HTMLElement.prototype.scrollIntoView = vi.fn();
 HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
 HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };

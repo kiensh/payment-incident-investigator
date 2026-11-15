@@ -60,7 +60,12 @@ function EvidenceDialog({ evidence, onClose }: { evidence: Evidence; onClose: ()
     element?.showModal();
     return () => { element?.close(); opener?.focus({ preventScroll: true }); };
   }, []);
-  return <dialog ref={dialog} className="evidence-dialog" aria-labelledby="evidence-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }} onKeyDown={(event) => {
+  return <dialog ref={dialog} className="evidence-dialog" aria-labelledby="evidence-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => {
+    if (event.target !== event.currentTarget) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    // A click on the dialog border/scrollbar is not a backdrop click.
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
+  }} onKeyDown={(event) => {
     if (event.key !== 'Tab') return;
     const targets = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex="0"]'));
     const first = targets[0];
@@ -68,8 +73,8 @@ function EvidenceDialog({ evidence, onClose }: { evidence: Evidence; onClose: ()
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }}>
+    <div className="dialog-heading"><div><p className="eyebrow">Source record</p><h2 id="evidence-title">Evidence details</h2></div><button type="button" className="button secondary small-button" onClick={onClose}>Close</button></div>
     <div className="dialog-content">
-      <div className="dialog-heading"><div><p className="eyebrow">Source record</p><h2 id="evidence-title">Evidence details</h2></div><button type="button" className="button secondary small-button" onClick={onClose}>Close</button></div>
       <p className="record-kind">{evidence.kind}</p>
       <p className="record-id">{evidence.id}</p>
       <dl className="record-fields">
@@ -108,10 +113,10 @@ function TechnicalTrace({ result }: { result: Investigation }) {
       {technical.tool_calls.length === 0 && <p className="muted small">No tool calls were reported.</p>}
       {technical.tool_calls.map((call, index) => <details className="tool-call" key={index}>
         <summary><span>{index + 1}. {call.name}<small>{call.duration_ms.toLocaleString()} ms</small></span></summary>
-        <div className="details-body"><h4>Arguments</h4><pre className="json-block">{JSON.stringify(call.arguments, null, 2)}</pre><h4>Result</h4><pre className="json-block">{JSON.stringify(call.result, null, 2)}</pre></div>
+        <div className="details-body"><h4>Arguments</h4><pre className="json-block" tabIndex={0} aria-label={`${index + 1}. ${call.name} arguments`}>{JSON.stringify(call.arguments, null, 2)}</pre><h4>Result</h4><pre className="json-block" tabIndex={0} aria-label={`${index + 1}. ${call.name} result`}>{JSON.stringify(call.result, null, 2)}</pre></div>
       </details>)}
       <h4>Reported usage</h4>
-      {technical.usage.length > 0 ? <pre className="json-block">{JSON.stringify(technical.usage, null, 2)}</pre> : <p className="muted small">Usage metrics are not available for this investigation.</p>}
+      {technical.usage.length > 0 ? <pre className="json-block" tabIndex={0} aria-label="Reported model usage">{JSON.stringify(technical.usage, null, 2)}</pre> : <p className="muted small">Usage metrics are not available for this investigation.</p>}
     </div>
   </details>;
 }

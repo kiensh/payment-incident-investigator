@@ -27,6 +27,8 @@
   --shadow: 0 3px 16px #20293604;
 }
 * { box-sizing: border-box; }
+html { scrollbar-gutter: stable; }
+html:has(.evidence-dialog[open]) { overflow: hidden; }
 body { margin: 0; background: var(--page); color: var(--ink); font-size: 14px; line-height: 1.6; }
 button, input, select, textarea { font: inherit; }
 button, select { cursor: pointer; }
@@ -75,7 +77,7 @@ ul, ol { margin: 0; }
 .mode-label.live { color: var(--success); }
 .mode-label.live .mode-dot { background: var(--success); }
 .workspace-grid { display: grid; grid-template-columns: 322px minmax(0, 1fr); gap: 22px; align-items: start; }
-.query-panel { position: sticky; top: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 22px; min-width: 0; }
+.query-panel { position: static; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 22px; min-width: 0; }
 .panel-heading { display: flex; align-items: flex-start; gap: 11px; padding-bottom: 22px; }
 .panel-heading h2 { font-size: 16px; letter-spacing: -.3px; margin: 2px 0 4px; }
 .panel-heading p { font-size: 11px; color: var(--muted); }
@@ -108,7 +110,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 .safety-note { font-size: 10px; line-height: 1.6; color: var(--muted); display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; }
 .lock-mark { width: 9px; height: 8px; border: 1px solid var(--muted); border-radius: 1.5px; display: inline-block; flex: 0 0 auto; margin-top: 6px; position: relative; }
 .lock-mark::before { content: ""; position: absolute; width: 5px; height: 5px; border: 1px solid var(--muted); border-bottom: 0; border-radius: 4px 4px 0 0; top: -5px; left: 1px; }
-.investigation-pane { min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); overflow-wrap: anywhere; }
+.investigation-pane { min-width: 0; scroll-margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); overflow-wrap: anywhere; }
 .empty-workspace { min-height: 630px; padding: 49px 46px 30px; }
 .empty-document { width: 43px; height: 53px; margin-bottom: 27px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface-soft); position: relative; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 11px; box-shadow: 5px 5px 0 var(--page); }
 .empty-document span { height: 2px; background: var(--line-strong); border-radius: 2px; }
@@ -193,10 +195,12 @@ summary small { display: block; color: var(--muted); font-size: 9px; font-weight
 .tool-call h4:first-child { margin-top: 0; }
 .result-footer { border-top: 1px solid var(--line); padding: 17px 30px; color: var(--muted); font-size: 10px; }
 .app-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 21px 0 23px; color: var(--muted); font-size: 9px; }
-.evidence-dialog { width: 620px; max-width: calc(100% - 32px); max-height: calc(100dvh - 48px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: 0 20px 80px #0003; overflow: auto; overflow-wrap: anywhere; }
+.evidence-dialog { width: 620px; max-width: calc(100% - 32px); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: 0 20px 80px #0003; overflow: auto; overflow-wrap: anywhere; overscroll-behavior: contain; scroll-padding-top: 96px; }
 .evidence-dialog::backdrop { background: #15203670; backdrop-filter: blur(3px); }
 .dialog-content { padding: 27px; }
-.dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 22px; }
+.dialog-heading { position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 20px 27px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.dialog-heading .button { flex-shrink: 0; }
+.dialog-content .json-block { max-height: none; overflow: visible; }
 .dialog-heading h2 { font-size: 22px; margin-top: 4px; }
 .record-kind { font-size: 11px; color: var(--accent-ink); font-weight: 600; }
 .record-id { margin-top: 3px; font-size: 13px; }
@@ -259,6 +263,7 @@ summary small { display: block; color: var(--muted); font-size: 9px; font-weight
   .record-fields > div { grid-template-columns: 95px minmax(0, 1fr); gap: 10px; }
   .evidence-source { display: none; }
   .dialog-content { padding: 22px 18px; }
+  .dialog-heading { padding: 18px; }
   .dialog-heading h2 { font-size: 20px; }
   .dialog-heading .button { padding: 7px 12px; }
   .app-footer { flex-direction: column; gap: 3px; }

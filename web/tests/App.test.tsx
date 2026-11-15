@@ -232,6 +232,30 @@ describe('investigation workspace (mocked API)', () => {
     await waitFor(() => expect(screen.queryByText('Demonstration data is not ready.')).not.toBeInTheDocument());
   });
 
+  it('brings a completed investigation back to the start of its workspace', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await showResult(user);
+    const workspace = screen.getByRole('region', { name: 'Investigation workspace' });
+    expect(workspace).toHaveFocus();
+    const scroll = vi.mocked(HTMLElement.prototype.scrollIntoView);
+    expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' });
+    expect(scroll.mock.contexts).toContain(workspace);
+  });
+
+  it('does not mistake the dialog surface or scrollbar for its backdrop', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await showResult(user);
+    await user.click(within(screen.getByRole('region', { name: 'Confirmed facts' })).getByRole('button', { name: 'View evidence ev_102' }));
+    const dialog = screen.getByRole('dialog');
+    vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 50, 300, 300));
+    fireEvent.click(dialog, { clientX: 399, clientY: 200 });
+    expect(dialog).toBeInTheDocument();
+    fireEvent.click(dialog, { clientX: 20, clientY: 200 });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('closes evidence with the native cancel event', async () => {
     const user = userEvent.setup();
     render(<App />);

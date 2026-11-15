@@ -60,7 +60,9 @@ export default function App() {
 
   useEffect(() => () => requestRef.current?.abort(), []);
   useEffect(() => {
-    if (state.status === 'success' || state.status === 'error') workspaceRef.current?.focus({ preventScroll: true });
+    if (state.status === 'idle') return;
+    workspaceRef.current?.focus({ preventScroll: true });
+    workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
   }, [state.status]);
 
   function resetResult() {

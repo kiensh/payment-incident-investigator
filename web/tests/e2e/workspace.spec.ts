@@ -166,6 +166,102 @@ test('renders hostile strings only as text and shows explicit live response mode
   await expect(page.locator('article img, article script')).toHaveCount(0);
 });
 
+test('a short desktop window can scroll to the form action and both page ends', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await mockApi(page);
+  await page.goto('/');
+  await chooseCase(page);
+  await page.mouse.move(160, 420);
+  await page.mouse.wheel(0, 450);
+  const submit = page.getByRole('button', { name: 'Investigate payment' });
+  await expect(submit).toBeInViewport({ ratio: 1 });
+  await submit.click();
+  await expect(page.getByRole('heading', { name: 'What the evidence tells us' })).toBeInViewport({ ratio: 1 });
+  await page.mouse.move(900, 400);
+  await page.mouse.wheel(0, 10000);
+  for (const text of await page.locator('.app-footer > span').all()) await expect(text).toBeInViewport({ ratio: 1 });
+  expect(await page.evaluate(() => Math.abs(document.documentElement.scrollHeight - innerHeight - scrollY))).toBeLessThan(1);
+  await page.mouse.wheel(0, -10000);
+  await expect(page.locator('.app-header')).toBeInViewport({ ratio: 1 });
+});
+
+for (const viewport of [{ width: 1280, height: 600 }, { width: 390, height: 420 }, { width: 844, height: 390 }]) {
+  test(`long modal scrolls end to end without losing its header or scrolling the page at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const fixture = structuredClone(result);
+    fixture.evidence[0].data.history = Array.from({ length: 90 }, (_, index) => `Synthetic observation ${index}`);
+    fixture.evidence[0].data.last_field = 'END_OF_RECORD';
+    await mockApi(page, route => route.fulfill({ json: fixture }));
+    await page.goto('/');
+    await chooseCase(page);
+    await page.getByRole('button', { name: 'Investigate payment' }).click();
+    const citation = page.getByRole('region', { name: 'Confirmed facts' }).getByRole('button', { name: 'View evidence ev_102' });
+    await citation.click();
+    const dialog = page.getByRole('dialog', { name: 'Evidence details' });
+    const close = dialog.getByRole('button', { name: 'Close' });
+    await expect(close).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('html')).toHaveCSS('overflow-y', 'hidden');
+    const backgroundY = await page.evaluate(() => window.scrollY);
+    await page.mouse.move(2, viewport.height / 2);
+    await page.mouse.wheel(0, 600);
+    // Wait for the browser's wheel animation, not a network response.
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => window.scrollY)).toBe(backgroundY);
+
+    await dialog.getByLabel('Recorded evidence fields').focus();
+    const keyboardScroll = dialog.evaluate(el => new Promise<void>(resolve => el.addEventListener('scrollend', () => resolve(), { once: true })));
+    await page.keyboard.press('PageDown');
+    await keyboardScroll;
+    await expect.poll(() => dialog.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    await expect(close).toBeInViewport({ ratio: 1 });
+    const bounds = (await dialog.boundingBox())!;
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height - 45);
+    await page.mouse.wheel(0, 20000);
+    await expect.poll(() => dialog.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThan(2);
+    await expect(close).toBeInViewport({ ratio: 1 });
+    const lastLine = await dialog.getByLabel('Recorded evidence fields').evaluate(el => {
+      const text = el.firstChild!;
+      const start = text.textContent!.indexOf('END_OF_RECORD');
+      const range = document.createRange();
+      range.setStart(text, start);
+      range.setEnd(text, start + 'END_OF_RECORD'.length);
+      const line = range.getBoundingClientRect();
+      const modal = el.closest('dialog')!.getBoundingClientRect();
+      return { top: line.top, bottom: line.bottom, modalBottom: modal.bottom, headingBottom: el.closest('dialog')!.querySelector('.dialog-heading')!.getBoundingClientRect().bottom };
+    });
+    expect(lastLine.top).toBeGreaterThanOrEqual(lastLine.headingBottom);
+    expect(lastLine.bottom).toBeLessThanOrEqual(lastLine.modalBottom);
+    await page.mouse.click(bounds.x + 1, bounds.y + bounds.height / 2);
+    await expect(dialog).toBeVisible();
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await page.mouse.wheel(0, -20000);
+    await expect.poll(() => dialog.evaluate(el => el.scrollTop)).toBe(0);
+    await expect(dialog.getByText('Source', { exact: true })).toBeInViewport();
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(citation).toBeFocused();
+    expect(await page.evaluate(() => window.scrollY)).toBe(backgroundY);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
+test('expanded technical records are keyboard-scrollable', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  const fixture = structuredClone(result);
+  fixture.technical.tool_calls[0].result = { observations: Array.from({ length: 100 }, (_, index) => `Recorded observation ${index}`) };
+  await mockApi(page, route => route.fulfill({ json: fixture }));
+  await page.goto('/');
+  await chooseCase(page);
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await page.locator('.technical-trace > summary').click();
+  await page.locator('.tool-call > summary').first().click();
+  const output = page.getByLabel('1. get_payment_evidence result', { exact: true });
+  await output.focus();
+  await expect(output).toBeFocused();
+  await page.keyboard.press('PageDown');
+  await expect.poll(() => output.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+});
+
 test('renders a desktop workspace without browser errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
