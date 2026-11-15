@@ -1,0 +1,54 @@
+{
+  "candidate": "f172094",
+  "independence": "Fresh-context final verifier. Five incident-level synthetic cases and manual semantic outcomes authored before reading exposed/dev fixtures, before reading production rules, and before invoking any analyzer/API. Schemas, ontology, runbooks, storage and eval interfaces were read. No production output used as oracle. This is a bounded adversarial sample, not an estimated production distribution.",
+  "cases": [
+    {
+      "case_id": "F01",
+      "payment_id": "pay_9e52d7a1",
+      "payment_state": "captured",
+      "disposition": "no_escalation",
+      "required_rules": ["capture_success", "duplicate_delivery", "aligned_observations"],
+      "forbidden_rules": ["multiple_captures", "capture_amount_mismatch", "notification_unresolved", "app_discrepancy"],
+      "required_claims": [{"section": "confirmed_facts", "text_contains": "48.25 GBP", "evidence_ids": ["fv1-capture-a"]}],
+      "semantic_outcome": "Exactly one distinct observed successful capture cap-f1 for 48.25 GBP; two observations of it are not 96.50 GBP or two captures. The 60 GBP authorization is not the captured amount or another charge. Same-ID attempt observations are one attempt whose later status succeeded. A later 204 retry recovers the earlier notification failure. Latest application success agrees and complete evidence permits closing without escalation. HTTP delivery does not prove downstream processing or technical causality."
+    },
+    {
+      "case_id": "F02",
+      "payment_id": "pay_28c1f0b6",
+      "payment_state": "captured",
+      "disposition": "escalate",
+      "required_rules": ["capture_success", "capture_pending", "capture_amount_mismatch"],
+      "forbidden_rules": ["multiple_captures", "aligned_observations"],
+      "required_claims": [{"section": "confirmed_facts", "text_contains": "40.00 EUR", "evidence_ids": ["fv2-capture-a"]}],
+      "semantic_outcome": "40 EUR is successfully captured; the separate 60 EUR pending capture cannot be counted as captured or as a second successful charge. 100 EUR was authorized/expected, not established as fully captured. The 40 versus 100 monetary shortfall warrants reconciliation/escalation under the demo runbook. Do not present the payment as fully paid or the discrepancy as resolved merely because app status is succeeded; no refund/retry action or invented reason."
+    },
+    {
+      "case_id": "F03",
+      "payment_id": "pay_76d9a305",
+      "payment_state": "captured",
+      "disposition": "check_required",
+      "required_rules": ["capture_success", "app_order_unknown", "event_order_unknown"],
+      "forbidden_rules": ["app_discrepancy", "out_of_order_events", "aligned_observations", "notification_hypothesis"],
+      "required_claims": [{"section": "confirmed_facts", "text_contains": "31.75 CAD", "evidence_ids": ["fv3-capture"]}],
+      "semantic_outcome": "31.75 CAD is captured. An offset-naive failed screen and offset-aware succeeded screen cannot be ordered across sources, even though failure's observed_at is later. Do not assert the current screen is failed or has become stale. Two business events at the exact same time with different received times do not prove which event happened first or out-of-order delivery. Both 200 deliveries only establish acknowledgement; request timezone/processing evidence read-only, without inventing a technical cause."
+    },
+    {
+      "case_id": "F04",
+      "payment_id": "pay_5f0ab8c2",
+      "payment_state": "unknown",
+      "disposition": "check_required",
+      "required_rules": ["missing_financial_evidence", "attempt_observed", "delivery_observed"],
+      "forbidden_rules": ["attempt_failure", "provider_canceled", "aligned_observations", "capture_success"],
+      "semantic_outcome": "The visible attempt failed with recorded card_declined, and its authorization was declined. A delivered payment_failed notification and failed app screen do not prove the payment globally failed or that nothing was captured elsewhere. Capture and attempt histories are explicitly incomplete; current requires_payment_method alone cannot establish no capture. State remains unknown with a read-only provider history check. Do not blame network/insufficient funds or promise no debit."
+    },
+    {
+      "case_id": "F05",
+      "payment_id": "pay_14b6e9d0",
+      "payment_state": "failed",
+      "disposition": "no_escalation",
+      "required_rules": ["provider_canceled", "aligned_observations"],
+      "forbidden_rules": ["capture_success", "authorization_only", "app_discrepancy", "multiple_captures"],
+      "semantic_outcome": "Current canceled snapshot and explicitly complete no-capture history support failed/canceled outcome in the supplied window. Same authorization ID's later expired observation supersedes earlier authorized hold: do not say an active hold remains or two authorizations exist. Latest failed app screen agrees. Close without automatic escalation, without extending this into a bank settlement/refund guarantee or inventing why the provider canceled. The observed authentication_required attempt code is not proof of cancellation causality."
+    }
+  ]
+}
