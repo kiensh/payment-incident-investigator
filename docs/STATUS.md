@@ -5,7 +5,7 @@
 - **Window:** started 2026-11-15 06:19:42 UTC; deadline 12:19:42 UTC. Finished early after acceptance. This was an advisory deadline, not a billing/process-kill guarantee.
 - **Runtime:** live workspace at http://127.0.0.1:8000; existing Copilot bridge at localhost:8765 unchanged. Verification-only servers stopped. Development/verifier agents finished; autonomous loop stopped.
 - **Git:** branch `feat/investigator-mvp`, local checkpoints committed. No authorized remote exists, so push is blocked; no remote or deployment was created.
-- **Application bridge requests:** **142 / 150**, including ten calls for the later user-requested testing and five calls in an earlier incomplete investigation. **8 remain.** No ledger reset, SDK automatic retries or external fallback. Hidden upstream retries and coding-agent usage are not measured by this cap.
+- **Application bridge requests:** last observed **145 / 150**, leaving **5**. The all-case review itself used ten calls and ended at142; the shared ledger advanced afterward, so those additional calls are not attributed to the verifier. Balances can change while the app is used. The total includes five calls in an earlier incomplete investigation. No ledger reset, SDK automatic retries or external fallback. Hidden upstream retries and coding-agent usage are not measured by this cap.
 
 ## Acceptance checks
 
