@@ -1,0 +1,182 @@
+import { expect, test } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
+import { cases, health, result } from '../fixtures';
+
+// Every /api request is intercepted. These browser checks do not use the live bridge.
+async function mockApi(page: Page, investigation?: (route: Route) => Promise<void>) {
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/health') return route.fulfill({ json: health });
+    if (path === '/api/cases') return route.fulfill({ json: cases });
+    if (path === '/api/investigate') return investigation ? investigation(route) : route.fulfill({ json: result });
+    throw new Error(`Unexpected API route: ${path}`);
+  });
+}
+
+async function chooseCase(page: Page) {
+  await expect(page.getByLabel('Example case')).toBeEnabled();
+  await page.getByLabel('Example case').selectOption('pay_1042');
+}
+
+test('case → loading → evidence, uncertainty, warnings, runbook, and collapsed actual trace', async ({ page }) => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => { finish = resolve; });
+  let body: unknown;
+  await mockApi(page, async (route) => {
+    body = route.request().postDataJSON();
+    await gate;
+    await route.fulfill({ json: result });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Synthetic payment evidence.')).toBeVisible();
+  await expect(page.getByText('Mock · no live model')).toBeVisible();
+  await chooseCase(page);
+  await expect(page.getByLabel('Payment ID')).toHaveValue('pay_1042');
+  await expect(page.getByLabel('Customer question')).toHaveValue(cases.cases[0].symptom);
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await expect(page.getByRole('heading', { name: 'Checking the available evidence' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Investigating…' })).toBeDisabled();
+  finish();
+  await expect(page.getByRole('heading', { name: 'What the evidence tells us' })).toBeVisible();
+  expect(body).toEqual({ payment_id: 'pay_1042', question: cases.cases[0].symptom });
+  await expect(page.getByText(result.unknowns[0].text)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Data-quality warnings' })).toContainText('Merchant identifiers');
+  const citation = page.getByRole('region', { name: 'Confirmed facts' }).getByRole('button', { name: 'View evidence ev_102' });
+  await citation.click();
+  const dialog = page.getByRole('dialog', { name: 'Evidence details' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('2026-05-12T10:02:00Z');
+  await expect(dialog).toContainText('synthetic_demo');
+  await expect(dialog).toContainText('Currency is not supplied');
+  await expect(dialog).toContainText('cap_002');
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(dialog).not.toBeVisible();
+  const trace = page.locator('details.technical-trace');
+  await expect(trace).not.toHaveAttribute('open');
+  await trace.locator('summary').first().click();
+  await expect(trace).toContainText('19.5 ms');
+  await trace.getByText('1. get_payment_evidence').click();
+  await expect(trace.getByText(/"evidence_ids"/)).toBeVisible();
+  await page.getByText('Review inconsistent payment status').click();
+  await expect(page.getByText('https://docs.stripe.com/webhooks')).toBeVisible();
+});
+
+test('validates input and supports keyboard-only evidence inspection with focus restoration', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await expect(page.getByLabel('Payment ID')).toBeFocused();
+  await expect(page.getByText('Enter a payment ID or choose a case.')).toBeVisible();
+  await page.getByLabel('Payment ID').fill('pay_1042');
+  await page.getByRole('button', { name: 'Conflicting status' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Customer question')).toBeFocused();
+  await page.getByRole('button', { name: 'Investigate payment' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'What the evidence tells us' })).toBeVisible();
+  const citation = page.getByRole('region', { name: 'Confirmed facts' }).getByRole('button', { name: 'View evidence ev_102' });
+  await citation.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Evidence details' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByLabel('Recorded evidence fields')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByLabel('Recorded evidence fields')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(citation).toBeFocused();
+});
+
+test('retry repeats the investigation request only and recovers after a service error', async ({ page }) => {
+  const requests: { method: string; body: unknown }[] = [];
+  await mockApi(page, async (route) => {
+    requests.push({ method: route.request().method(), body: route.request().postDataJSON() });
+    if (requests.length === 1) await route.fulfill({ status: 502, json: { error: { code: 'bridge_unavailable', message: 'The bridge is temporarily unavailable.', retryable: true } } });
+    else await route.fulfill({ json: result });
+  });
+  await page.goto('/');
+  await chooseCase(page);
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await expect(page.getByRole('alert')).toHaveText('The bridge is temporarily unavailable.');
+  await expect(page.getByText(/No payment action was performed/)).toBeVisible();
+  await page.getByRole('button', { name: 'Retry investigation' }).click();
+  await expect(page.getByRole('heading', { name: 'What the evidence tells us' })).toBeVisible();
+  expect(requests).toHaveLength(2);
+  expect(requests[0]).toEqual(requests[1]);
+  expect(requests[0].method).toBe('POST');
+  await expect(page.getByRole('button', { name: /refund|retry payment|charge payment/i })).toHaveCount(0);
+});
+
+test('is usable at 375px with no horizontal overflow, including evidence and trace', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await mockApi(page);
+  await page.goto('/');
+  await chooseCase(page);
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await expect(page.getByRole('heading', { name: 'What the evidence tells us' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole('region', { name: 'Unknowns' }).getByRole('button', { name: 'View evidence ev_103' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Not recorded');
+  const bounds = await dialog.boundingBox();
+  expect(bounds?.x).toBeGreaterThanOrEqual(16);
+  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(359);
+  await page.keyboard.press('Escape');
+  await page.locator('details.technical-trace > summary').click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: '/tmp/incident-investigator-ui-mobile.png', fullPage: true });
+});
+
+test('handles empty cases, non-retryable unknown payment, and corrected input', async ({ page }) => {
+  let attempts = 0;
+  await mockApi(page, async (route) => {
+    attempts += 1;
+    await route.fulfill(attempts === 1 ? { status: 404, json: { error: { code: 'not_found', message: 'Payment was not found.', retryable: false } } } : { json: result });
+  });
+  await page.route('**/api/cases', (route) => route.fulfill({ json: { cases: [], synthetic: true } }));
+  await page.goto('/');
+  await expect(page.getByText(/No example cases are available/)).toBeVisible();
+  await page.getByLabel('Payment ID').fill('missing');
+  await page.getByRole('button', { name: 'Missing information' }).click();
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Payment was not found.');
+  await expect(page.getByRole('button', { name: 'Retry investigation' })).toHaveCount(0);
+  await page.getByLabel('Payment ID').fill('pay_1042');
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await expect(page.getByRole('heading', { name: 'What the evidence tells us' })).toBeVisible();
+});
+
+test('renders hostile strings only as text and shows explicit live response mode', async ({ page }) => {
+  const payload = '<img src=x onerror="window.injected=true"><script>window.injected=true</script>';
+  const fixture = structuredClone(result);
+  fixture.mode = 'live';
+  fixture.summary = payload;
+  fixture.evidence[0].data.note = payload;
+  await mockApi(page, (route) => route.fulfill({ json: fixture }));
+  await page.goto('/');
+  await chooseCase(page);
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await expect(page.getByText(payload, { exact: true })).toBeVisible();
+  await expect(page.getByRole('article').getByText('Live · bridge model')).toBeVisible();
+  expect(await page.evaluate(() => 'injected' in window)).toBe(false);
+  await expect(page.locator('article img, article script')).toHaveCount(0);
+});
+
+test('renders a desktop workspace without browser errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await mockApi(page);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /Separate what happened/ })).toBeVisible();
+  await page.screenshot({ path: '/tmp/incident-investigator-ui-desktop.png', fullPage: true });
+  await chooseCase(page);
+  await page.getByRole('button', { name: 'Investigate payment' }).click();
+  await expect(page.getByRole('heading', { name: 'What the evidence tells us' })).toBeVisible();
+  await page.screenshot({ path: '/tmp/incident-investigator-ui-findings.png', fullPage: true });
+  expect(errors).toEqual([]);
+});

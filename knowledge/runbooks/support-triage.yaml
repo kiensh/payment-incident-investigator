@@ -1,0 +1,25 @@
+id: support-triage
+version: '1.0.0'
+title: Close or route a support inquiry
+categories: [support, triage, check, escalation, normal]
+applicability: A support teammate needs a bounded explanation and the next safe check for one payment ID.
+required_evidence:
+  - Deterministic payment-state analysis and supporting record IDs.
+  - Customer symptom, unresolved discrepancies and the evidence observation window.
+steps:
+  - Explain confirmed facts first and separate them from conditional hypotheses.
+  - Answer whether evidence supports capture, authorization only, failure, or uncertainty.
+  - For consistent complete evidence, resolve the inquiry without automatic escalation.
+  - For a discrepancy, state what support can check read-only and which team owns the missing information.
+  - Keep any financial action outside this application and under the customer's existing approval controls.
+supported_conclusions:
+  - A normal, fully evidenced payment can be explained without escalation.
+  - A genuine failed attempt with explicit absence of capture need not imply an integration incident.
+  - This offline demo does not establish production provider compatibility or bank settlement.
+escalation:
+  - Escalate genuine conflicting financial evidence, not every support question.
+  - Never offer refund or payment-retry actions, credentials, or unrestricted queries.
+sources:
+  - https://docs.stripe.com/payments/paymentintents/lifecycle
+  - https://docs.stripe.com/testing
+  - 'Demo policy PI-04: support investigation only; projected workflow benefits must be tested in a bounded pilot.'

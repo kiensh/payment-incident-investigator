@@ -1,0 +1,26 @@
+id: webhook-evidence
+version: '1.0.0'
+title: Interpret delivery evidence
+categories: [webhook, delivery, duplicate, notification, event]
+applicability: Customer or application status differs from provider records, or several notifications appear for one payment.
+required_evidence:
+  - Event ID, event type and referenced payment/capture identity.
+  - Separate webhook delivery IDs, HTTP outcomes and observation times.
+  - Application processing acknowledgement or status observation when available.
+steps:
+  - Group deliveries by event ID; a repeat delivery does not create another capture.
+  - Distinguish HTTP delivery success from successful downstream processing.
+  - Compare business event times with delivery times without assuming delivery order is event order.
+  - Inspect application processing logs read-only when a delivered event has not produced the expected application status.
+  - Keep any delayed-processing explanation conditional unless processing evidence demonstrates it.
+supported_conclusions:
+  - Stripe does not guarantee event delivery order and may deliver an event more than once.
+  - A non-2xx delivery demonstrates a notification problem, not a reversal of a capture.
+  - A 2xx acknowledgement alone does not prove the business update was applied.
+escalation:
+  - No escalation merely for repeated delivery when unique capture records and application state are consistent.
+  - Ask the integration owner to inspect delivery and processing logs for an unresolved status mismatch.
+  - Do not resend webhooks, change endpoints or execute any payment action from this investigator.
+sources:
+  - https://docs.stripe.com/webhooks
+  - 'Demo policy PI-02: delivery and processing observations are separate; never infer causation solely from co-occurrence.'

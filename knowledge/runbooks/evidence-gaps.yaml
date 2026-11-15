@@ -1,0 +1,26 @@
+id: evidence-gaps
+version: '1.0.0'
+title: Handle gaps and ambiguity
+categories: [missing, unknown, order, timestamp, ambiguous, quality, identity]
+applicability: Incomplete lifecycle coverage, uncertain timestamps, ambiguous merchant identity or unavailable currency.
+required_evidence:
+  - Original source values and normalization warnings.
+  - Observation source and explicit coverage declarations.
+  - Business timestamp and arrival timestamp, including known timezone precision.
+steps:
+  - Preserve original values and report identity collisions instead of inventing a mapping.
+  - Do not infer currency or timezone from merchant names, amounts or location.
+  - Separate generated demo assumptions from source-dataset facts.
+  - Do not invent ordering for equal timestamps or compare naive and timezone-aware timestamps as one reliable clock.
+  - Name the smallest missing read-only record needed to resolve the question.
+supported_conclusions:
+  - Missing evidence is unknown, not an automatic failure.
+  - Equal or ambiguous timestamps cannot prove which business event occurred first.
+  - Source data quality warnings do not invalidate independent, explicitly scoped lifecycle evidence by themselves.
+escalation:
+  - Abstain from a definitive financial conclusion when relevant provider evidence is missing or contradictory.
+  - Request source-owner clarification for identity and clock ambiguity before joining across systems.
+  - Do not escalate an otherwise consistent lifecycle solely because the unrelated source row lacks currency.
+sources:
+  - https://docs.stripe.com/webhooks
+  - 'Demo policy PI-03: unknown values remain null; no guessed identities, currency, timezone or historical causes.'

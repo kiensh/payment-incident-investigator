@@ -1,9 +1,10 @@
 # Build checkpoint
 
 - Start: 2026-11-15 06:19:42 UTC. Deadline: 2026-11-15 12:19:42 UTC. Advisory work deadline, not a billing/process-kill guarantee.
-- Candidate: initial scaffold on `feat/investigator-mvp`; no Git remote configured, push blocked until an authorized remote exists.
-- Live bridge requests: 0 / 150. Reserve at least 35 for final verification. No running bridge changes authorized.
-- Current failures: no application yet.
+- Candidate: integrated MVP on `feat/investigator-mvp`, preparing first frozen implementation commit. No Git remote configured; push remains blocked.
+- Live bridge requests: 3 / 150 (2026-11-15 06:38 UTC). Reserve at least 35 for final verification. Shared bridge unchanged.
+- Results: 98 Python tests, Python typecheck, 28 frontend tests, TS typecheck/build, 7 Chromium mocked-API browser tests passed. Rules-only dev evaluation: 20/20. Real socket live smoke: HTTP 200, 3 native model calls, cited capture/display discrepancy; returned cache creation/read counters observed.
+- Current failures: no known implementation-test failures; independent verification and broader live evaluation pending.
 
 ## Acceptance checklist
 
@@ -21,4 +22,4 @@
 
 Coordinator owns manifests/locks, shared contracts, `src/agent`, `src/tools`, API, integration and final docs. Data/domain worker will own `src/domain`, `src/storage`, `src/pipeline`, dataset provenance, ontology, observations and deterministic domain tests. UI worker will own `web/src` and frontend/browser tests (not manifests). Initial bridge research is read-only. Disjoint-path editing, at most three workers. Fresh verification workers author independent hold-out cases and run read-only checks against frozen candidates; findings are fixed by coordinator, then reverified. Only one worker uses shared Playwright at a time. No public deployment or artifact publication.
 
-Next: discover bridge protocol, establish API/domain contracts, implement data and UI in parallel with API/agent. Check deadline before each iteration/long operation.
+Next: commit and freeze implementation, launch fresh-context domain/hold-out and browser verifiers with disjoint test outputs. Coordinator runs live development eval without implementation edits during freeze. Stop early when independent checks pass; otherwise implement confirmed fixes and submit a new candidate.

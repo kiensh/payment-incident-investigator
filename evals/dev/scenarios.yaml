@@ -1,0 +1,195 @@
+# OFFLINE DEVELOPMENT SPECIFICATIONS. This file is never a runtime data source.
+# USD and UTC are explicit synthetic test policies, not inferred source properties.
+version: 1
+cases:
+  - payment_id: pay_6a73b902
+    design: Successful capture with a later failed display; causality deliberately absent.
+    symptom: The checkout screen says failed. Can you check the payment outcome?
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded, attempt_id: a1}}
+      - {id: e1, kind: ProviderEvent, at: 20, seen: 22, data: {event_type: payment_intent.succeeded, subject_kind: Payment, subject_id: $payment}}
+      - {id: w1, kind: WebhookDelivery, at: 23, data: {event_id: e1, status: delivered, http_status: 200, attempt_number: 1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: failed, channel: checkout}}
+
+  - payment_id: pay_1c48d5a7
+    design: Explicit complete failure view with a single failed attempt; no escalation is justified.
+    symptom: The customer could not finish checkout. What do the available records show?
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: requires_payment_method, capture_history_complete: true, attempt_history_complete: true}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: failed, error_code: processing_error}}
+      - {id: e1, kind: ProviderEvent, at: 10, seen: 12, data: {event_type: payment_intent.payment_failed, subject_kind: Payment, subject_id: $payment}}
+      - {id: w1, kind: WebhookDelivery, at: 14, data: {event_id: e1, status: delivered, http_status: 200, attempt_number: 1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: failed, channel: checkout}}
+
+  - payment_id: pay_87e021bc
+    design: Three delivery attempts share one event and one capture; delivery count is not charge count.
+    symptom: Support saw several notifications for this payment. Please check the payment history.
+    observations:
+      - {id: p1, kind: Payment, at: 40, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded, attempt_id: a1}}
+      - {id: e1, kind: ProviderEvent, at: 20, seen: 21, data: {event_type: payment_intent.succeeded, subject_kind: Payment, subject_id: $payment}}
+      - {id: w1, kind: WebhookDelivery, at: 22, data: {event_id: e1, status: failed, http_status: 503, attempt_number: 1}}
+      - {id: w2, kind: WebhookDelivery, at: 25, data: {event_id: e1, status: delivered, http_status: 200, attempt_number: 2}}
+      - {id: w3, kind: WebhookDelivery, at: 28, data: {event_id: e1, status: delivered, http_status: 200, attempt_number: 3}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: receipt}}
+
+  - payment_id: pay_39d4a8f1
+    design: Processing event arrives after success but occurred earlier; app and capture already aligned.
+    symptom: The timeline in the support console looks unusual. Is the payment complete?
+    observations:
+      - {id: p1, kind: Payment, at: 40, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded, attempt_id: a1}}
+      - {id: e1, kind: ProviderEvent, at: 10, seen: 30, data: {event_type: payment_intent.processing, subject_kind: Payment, subject_id: $payment}}
+      - {id: e2, kind: ProviderEvent, at: 20, seen: 22, data: {event_type: payment_intent.succeeded, subject_kind: Payment, subject_id: $payment}}
+      - {id: w1, kind: WebhookDelivery, at: 31, data: {event_id: e1, status: delivered, http_status: 200, attempt_number: 1}}
+      - {id: w2, kind: WebhookDelivery, at: 23, data: {event_id: e2, status: delivered, http_status: 200, attempt_number: 1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: order_page}}
+
+  - payment_id: pay_b2407e6d
+    design: Only coarse source context and a pending app observation; hidden lifecycle must not be invented.
+    symptom: The customer is waiting for an update. Can support confirm what happened?
+    observations:
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: pending, channel: checkout}}
+
+  - payment_id: pay_54f906ac
+    design: Ordinary complete payment and matching display, with no notification anomaly.
+    symptom: Please confirm the status of this order before support replies.
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded, attempt_id: a1}}
+      - {id: e1, kind: ProviderEvent, at: 20, seen: 21, data: {event_type: charge.captured, subject_kind: Capture, subject_id: c1}}
+      - {id: w1, kind: WebhookDelivery, at: 22, data: {event_id: e1, status: delivered, http_status: 204, attempt_number: 1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: receipt}}
+
+  - payment_id: pay_c7183d40
+    design: Authorized amount with no successful capture; authorization must remain distinct.
+    symptom: The customer sees a card hold and an unfinished order. What can we confirm?
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: requires_capture}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: succeeded}}
+      - {id: h1, kind: Authorization, at: 15, data: {status: authorized, attempt_id: a1}}
+      - {id: e1, kind: ProviderEvent, at: 15, seen: 16, data: {event_type: payment_intent.amount_capturable_updated, subject_kind: Payment, subject_id: $payment}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: pending, channel: order_page}}
+
+  - payment_id: pay_08ed63b5
+    design: Two distinct attempts, only one successful capture; not two charges.
+    symptom: The customer tried checkout more than once and wants the outcome checked.
+    observations:
+      - {id: p1, kind: Payment, at: 40, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: a1, kind: PaymentAttempt, at: 5, data: {status: failed, error_code: authentication_required}}
+      - {id: a2, kind: PaymentAttempt, at: 15, data: {status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded, attempt_id: a2}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 10, data: {status: failed, channel: checkout}}
+      - {id: s2, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: checkout}}
+
+  - payment_id: pay_e9017a32
+    design: Captured payment, failed notification, and later failed display; only a conditional causal hypothesis.
+    symptom: The order page still says failed. Please investigate before support responds.
+    observations:
+      - {id: p1, kind: Payment, at: 40, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded, attempt_id: a1}}
+      - {id: e1, kind: ProviderEvent, at: 20, seen: 21, data: {event_type: payment_intent.succeeded, subject_kind: Payment, subject_id: $payment}}
+      - {id: w1, kind: WebhookDelivery, at: 25, data: {event_id: e1, status: failed, http_status: 500, attempt_number: 1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: failed, channel: order_page}}
+
+  - payment_id: pay_2bf475c8
+    design: Conflicting app observations with exactly equal business timestamps; no arbitrary tiebreak.
+    symptom: Two screens give different statuses. Which observations can support rely on?
+    observations:
+      - {id: p1, kind: Payment, at: 40, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, seen: 36, data: {status: succeeded, channel: receipt}}
+      - {id: s2, kind: ApplicationStatusObservation, at: 35, seen: 38, data: {status: failed, channel: order_page}}
+
+  - payment_id: pay_7d0ca619
+    design: Pending capture and processing provider state; neither successful nor failed is established.
+    symptom: Checkout has not shown a final result. What is still uncertain?
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: processing}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: processing}}
+      - {id: c1, kind: Capture, at: 20, data: {status: pending, attempt_id: a1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: processing, channel: checkout}}
+
+  - payment_id: pay_a49518de
+    design: Capture failed while an authorization remains; failed capture does not reverse a hold.
+    symptom: The customer sees a hold after checkout did not finish. Please check the records.
+    observations:
+      - {id: p1, kind: Payment, at: 40, data: {record_type: provider_snapshot, provider_status: requires_capture}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: succeeded}}
+      - {id: h1, kind: Authorization, at: 15, data: {status: authorized, attempt_id: a1}}
+      - {id: c1, kind: Capture, at: 20, data: {status: failed, attempt_id: a1, authorization_id: h1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: failed, channel: checkout}}
+
+  - payment_id: pay_438e2b70
+    design: Two distinct successful captures need reconciliation; do not label intentionality as known.
+    symptom: The customer is concerned about the amount shown for this order. Can you review it?
+    observations:
+      - {id: p1, kind: Payment, at: 40, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded, attempt_id: a1}}
+      - {id: c2, kind: Capture, at: 25, data: {status: succeeded, attempt_id: a1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: receipt}}
+
+  - payment_id: pay_d816f05a
+    design: One capture exceeds the comparable provider snapshot amount by five synthetic USD.
+    symptom: Support wants to reconcile the order amount with the provider record.
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded, amount: $amount+5.00}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: receipt}}
+
+  - payment_id: pay_95ac370e
+    design: A delivery references an absent event record; missing linkage is unknown, not failed payment.
+    symptom: The notification record in the support console is incomplete. What should we check?
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded}}
+      - {id: w1, kind: WebhookDelivery, at: 25, data: {event_id: e9, status: delivered, http_status: 200, attempt_number: 1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: order_page}}
+
+  - payment_id: pay_0f6392ab
+    design: Historical failed display followed by capture and an updated successful display; resolved observation.
+    symptom: The customer remembers an error earlier in checkout. Is the order now complete?
+    observations:
+      - {id: p1, kind: Payment, at: 40, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 5, data: {status: failed, channel: checkout}}
+      - {id: s2, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: order_page}}
+
+  - payment_id: pay_f72a09c4
+    design: Old failed application display predates capture, but no newer app view exists; current display unknown.
+    symptom: Support has an earlier error screenshot. What can we confirm about the payment now?
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: succeeded}}
+      - {id: c1, kind: Capture, at: 20, data: {status: succeeded}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 5, seen: 35, data: {status: failed, channel: customer_screenshot}}
+
+  - payment_id: pay_30bc8e51
+    design: Explicit provider decline with complete failed-attempt coverage and matching app failure.
+    symptom: The customer asks why checkout did not complete. Which facts are actually recorded?
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: requires_payment_method, capture_history_complete: true, attempt_history_complete: true}}
+      - {id: a1, kind: PaymentAttempt, at: 10, data: {status: failed, error_code: card_declined}}
+      - {id: h1, kind: Authorization, at: 10, data: {status: declined, attempt_id: a1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: failed, channel: checkout}}
+
+  - payment_id: pay_ae5427d9
+    design: A success notification exists without capture record; event alone must not manufacture amount evidence.
+    symptom: Support received a provider notification but cannot see the full payment record.
+    observations:
+      - {id: e1, kind: ProviderEvent, at: 20, seen: 21, data: {event_type: payment_intent.succeeded, subject_kind: Payment, subject_id: $payment}}
+      - {id: w1, kind: WebhookDelivery, at: 25, data: {event_id: e1, status: delivered, http_status: 200, attempt_number: 1}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: succeeded, channel: receipt}}
+
+  - payment_id: pay_6149b3f0
+    design: Complete canceled provider snapshot, no capture, and matching display; no additional escalation.
+    symptom: The customer left checkout before finishing and asks whether the payment completed.
+    observations:
+      - {id: p1, kind: Payment, at: 30, data: {record_type: provider_snapshot, provider_status: canceled, capture_history_complete: true, attempt_history_complete: true}}
+      - {id: s1, kind: ApplicationStatusObservation, at: 35, data: {status: failed, channel: checkout}}

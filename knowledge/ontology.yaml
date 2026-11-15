@@ -1,0 +1,72 @@
+version: '1.0.0'
+provider_model: stripe-payment-intent-inspired-demo
+scope: Read-only evidence interpretation; not a live provider connector or settlement ledger.
+concepts:
+  Payment:
+    definition: A logical payment with source context or an explicitly identified provider snapshot. A coarse source status is not lifecycle proof.
+    identity_field: null
+    relations: []
+  PaymentAttempt:
+    definition: One attempt to pay. Multiple attempts do not establish multiple captured charges.
+    identity_field: attempt_id
+    relations: []
+  Authorization:
+    definition: Permission or a hold for an amount; authorization does not establish capture.
+    identity_field: authorization_id
+    relations:
+      - {field: attempt_id, target: PaymentAttempt}
+  Capture:
+    definition: A provider capture record. Only a successful capture record establishes a captured amount in this demo.
+    identity_field: capture_id
+    relations:
+      - {field: attempt_id, target: PaymentAttempt}
+      - {field: authorization_id, target: Authorization}
+  ProviderEvent:
+    definition: A business-event notification; its occurrence time and delivery time are different clocks. An event is not an additional capture.
+    identity_field: event_id
+    relations: []
+  WebhookDelivery:
+    definition: One notification delivery attempt for a provider event. Delivery failure does not reverse payment state.
+    identity_field: delivery_id
+    relations:
+      - {field: event_id, target: ProviderEvent}
+  ApplicationStatusObservation:
+    definition: A customer-facing status observation at a particular time, not authoritative financial state.
+    identity_field: observation_id
+    relations: []
+policies:
+  successful_capture_status: succeeded
+  active_authorization_status: authorized
+  terminal_provider_failure_statuses: [canceled]
+  timezone_policy: Only offset-aware timestamps are ordered across sources; equal timestamps do not break ties.
+  missing_reference_policy: Record an unknown; reject references to a known object of the wrong kind or payment.
+  source_identity_policy: Never join unrelated merchant names by merchant_id or fill missing currency/timezone.
+rules:
+  source_context: Original synthetic source rows are context, not lifecycle evidence.
+  capture_success: Distinct successful capture IDs establish observed captured amounts.
+  capture_identity_conflict: Conflicting records for one capture ID require reconciliation.
+  capture_pending: Pending capture is not a successful capture.
+  capture_failed: Failed capture is distinct from failed payment or reversed authorization.
+  authorization_only: An authorization does not establish capture.
+  authorization_observed: Authorization records describe holds and declines, not additional charges.
+  attempt_observed: Attempt outcomes apply to attempts, not a count of charges.
+  attempt_failure: Explicit current provider failure plus failed attempts can establish an observed failed payment attempt.
+  provider_canceled: A current canceled provider snapshot establishes canceled payment state absent conflicting success.
+  provider_snapshot_conflict: Current provider snapshots are ambiguous or disagree with capture evidence.
+  missing_financial_evidence: Missing capture or terminal-failure evidence leaves payment state unknown.
+  multiple_captures: Multiple distinct successful capture IDs warrant reconciliation, not an automatic duplicate-charge diagnosis.
+  capture_amount_mismatch: Comparable provider expected and captured amounts differ; no currency conversion is inferred.
+  currency_unavailable: Missing or incomparable currencies prevent monetary reconciliation.
+  app_observation: Application status is observed independently from provider financial state.
+  app_discrepancy: A later application observation disagrees with established financial evidence.
+  app_precedes_financial: An earlier application status cannot establish a current discrepancy.
+  app_order_unknown: Missing, naive, or tied timestamps cannot establish the latest conflicting application status.
+  delivery_observed: Notification delivery outcomes do not change financial state.
+  duplicate_delivery: Repeated delivery of one event does not create another capture.
+  missing_delivery_evidence: A missing event or delivery record does not establish notification failure.
+  out_of_order_events: Arrival order differs from business-event order; arrival is not the source of financial state.
+  event_order_unknown: Tied or unavailable event clocks do not establish an ordering.
+  missing_reference: Missing related evidence limits interpretation.
+  notification_hypothesis: Delivery trouble may explain a stale application status, but causality needs application logs.
+  clock_inversion: A received-before-occurred record signals a clock-quality issue, not invented event ordering.
+  aligned_observations: Sufficient coherent financial and application observations need no escalation.

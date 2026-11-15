@@ -1,0 +1,49 @@
+{
+  "title": "Digital Wallet Transactions",
+  "creator": "Harun Rai",
+  "dataset_ref": "harunrai/digital-wallet-transactions",
+  "dataset_id": 5558639,
+  "source_url": "https://www.kaggle.com/datasets/harunrai/digital-wallet-transactions",
+  "metadata_url": "https://www.kaggle.com/api/v1/datasets/list?search=harunrai%2Fdigital-wallet-transactions",
+  "metadata_verified_at": "2026-11-15",
+  "metadata_verified_fields": {
+    "ref": "harunrai/digital-wallet-transactions",
+    "title": "Digital Wallet Transactions",
+    "subtitle": "This a synthetic dataset for a digital wallet company.",
+    "creatorName": "Harun Rai",
+    "ownerName": "Harun Rai",
+    "licenseName": "MIT",
+    "currentVersionNumber": 1,
+    "lastUpdated": "2024-08-18T06:04:45.627Z",
+    "totalBytes": 298762
+  },
+  "archive": "digital-wallet/digital-wallet.zip",
+  "archive_bytes": 298762,
+  "archive_sha256": "dd88d321401d46b77e6fe7ffe17baaf3786bf207dde3fe270bc7535a0591360a",
+  "archive_members": [
+    {
+      "name": "digital_wallet_transactions.csv",
+      "bytes": 903674,
+      "sha256": "8cad043a23452880e8de99e54457f72ba030578681c1614bf5ecae94adcc5c6c"
+    }
+  ],
+  "acquisition": "Existing user-provided downloaded archive inspected before byte-for-byte copying. No downloaded scripts or notebooks were executed; the archive contains only one CSV member.",
+  "license": {
+    "upstream_listing": "MIT",
+    "reference": "https://opensource.org/license/mit",
+    "notice": "LICENSE_NOTICE.txt",
+    "limitation": "The upstream archive contains no license file or explicit copyright notice. Preserve this attribution and the independently verified upstream MIT declaration; no missing copyright notice has been fabricated."
+  },
+  "quality_rechecked": {
+    "rows": 5000,
+    "unique_transaction_ids": 5000,
+    "merchant_ids": 987,
+    "merchant_ids_with_multiple_names": 962,
+    "card_rows": 2014,
+    "source_currency_column": false,
+    "source_timestamps_have_timezone": false,
+    "source_lifecycle_or_root_cause_columns": false,
+    "status_counts": {"Successful": 4755, "Failed": 146, "Pending": 99}
+  },
+  "synthetic_separation": "Original dataset is itself synthetic. Development lifecycle histories are independently authored demo observations, not recovered hidden history. Original currency and timezone remain unknown. Synthetic lifecycle UTC timestamps and USD amounts are explicitly labelled test policies. Runtime records exclude scenario design descriptions and expected answers."
+}
