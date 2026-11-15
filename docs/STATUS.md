@@ -1,10 +1,11 @@
 # Build checkpoint
 
 - Start: 2026-11-15 06:19:42 UTC. Deadline: 2026-11-15 12:19:42 UTC. Advisory work deadline, not a billing/process-kill guarantee.
-- Candidate: integrated MVP on `feat/investigator-mvp`, preparing first frozen implementation commit. No Git remote configured; push remains blocked.
-- Live bridge requests: 3 / 150 (2026-11-15 06:38 UTC). Reserve at least 35 for final verification. Shared bridge unchanged.
-- Results: 98 Python tests, Python typecheck, 28 frontend tests, TS typecheck/build, 7 Chromium mocked-API browser tests passed. Rules-only dev evaluation: 20/20. Real socket live smoke: HTTP 200, 3 native model calls, cited capture/display discrepancy; returned cache creation/read counters observed.
-- Current failures: no known implementation-test failures; independent verification and broader live evaluation pending.
+- Candidate: `6de2098` independently checked; now unfrozen for confirmed fixes. Branch `feat/investigator-mvp`; no authorized remote, push blocked.
+- Live bridge requests: 98 / 150 (2026-11-15 06:48 UTC); 52 remain. Shared bridge unchanged; reserve capacity for final fresh verification.
+- Results: clean exported setup passed; 98 Python + 28 frontend + 7 mocked browser tests, both typechecks/build passed. Dev baseline 20/20 and live 20/20 (62 model calls). Independent browser: 3 live investigations (9 calls), 13 mocked checks plus edge checks, no blocking UI defects. Independent incident baseline: 7/10; selected passing subset live 7/7 (24 calls), not full hold-out success.
+- Confirmed failures: tied authorization amount conflict; untimed observation hides known later discrepancy; unresolved webhook errors incorrectly closed; inherited SDK custom headers; empty successful bridge streams produce unstructured errors; invalid bridge ports leak concurrency slots. Also harden usage metadata and remove blocked Swagger UI. See docs/verification.md.
+- Hold-out status: 10 independently authored cases are now exposed regression cases because their findings will inform fixes.
 
 ## Acceptance checklist
 
@@ -22,4 +23,4 @@
 
 Coordinator owns manifests/locks, shared contracts, `src/agent`, `src/tools`, API, integration and final docs. Data/domain worker will own `src/domain`, `src/storage`, `src/pipeline`, dataset provenance, ontology, observations and deterministic domain tests. UI worker will own `web/src` and frontend/browser tests (not manifests). Initial bridge research is read-only. Disjoint-path editing, at most three workers. Fresh verification workers author independent hold-out cases and run read-only checks against frozen candidates; findings are fixed by coordinator, then reverified. Only one worker uses shared Playwright at a time. No public deployment or artifact publication.
 
-Next: commit and freeze implementation, launch fresh-context domain/hold-out and browser verifiers with disjoint test outputs. Coordinator runs live development eval without implementation edits during freeze. Stop early when independent checks pass; otherwise implement confirmed fixes and submit a new candidate.
+Next: checkpoint independent fixtures/results, fix confirmed domain and bridge-boundary defects with regression tests, then freeze a new candidate for a newly created final verifier. Do not spend requests rerunning known deterministic failures before fixes. Deadline remains 12:19:42 UTC.

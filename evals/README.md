@@ -14,4 +14,6 @@ A newly created verification agent, not the implementation context, must author 
 
 The verifier may write `holdout/*`, `expected/holdout.json` and verification reports, but may not patch implementation. It runs its cases on the frozen candidate and reports reproducible findings. The coordinator fixes implementation and submits a new candidate. If hold-out findings inform fixes, the same cases thereafter are **regression cases**, not untouched hold-out evidence; record this explicitly and use a fresh verifier for the final check.
 
-Exact independent commands and outcomes are recorded in `docs/verification.md` once run. Before that record exists, hold-out verification is pending. Live requests use the same persistent ledger (150 maximum application-to-bridge calls; no hidden budget resets). Only one worker controls the shared Playwright browser. Test databases and browser sessions must be isolated.
+The first frozen candidate `6de2098` scored7/10 on independently authored cases in `holdout/prepare.py`, with manually specified expectations in `expected/holdout.json`. Its three failures informed fixes, so **these ten cases are now exposed regression evidence, not untouched hold-outs**. The7 baseline-passing cases were also run live once (24 model requests). Exact commands, findings and limits are recorded in `docs/verification.md`.
+
+Live requests use the same persistent ledger (150 maximum application-to-bridge calls; no hidden budget resets). Only one worker controls the shared Playwright browser. Test databases and browser sessions must be isolated.

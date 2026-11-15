@@ -1,5 +1,6 @@
 # Local Claude Code settings
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Playwright MCP browser output
 .playwright-mcp/
