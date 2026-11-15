@@ -1,0 +1,25 @@
+# Local Claude Code settings
+.claude/settings.local.json
+
+# Playwright MCP browser output
+.playwright-mcp/
+
+.env
+.env.*
+!.env.example
+.secrets/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+data/prepared/
+artifacts/*
+!artifacts/.gitkeep
+*.egg-info/
+.DS_Store
