@@ -31,7 +31,7 @@
   "license": {
     "upstream_listing": "MIT",
     "reference": "https://opensource.org/license/mit",
-    "notice": "LICENSE_NOTICE.txt",
+    "notice": "LICENSE_NOTICE.md",
     "limitation": "The upstream archive contains no license file or explicit copyright notice. Preserve this attribution and the independently verified upstream MIT declaration; no missing copyright notice has been fabricated."
   },
   "quality_rechecked": {

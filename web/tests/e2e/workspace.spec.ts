@@ -268,6 +268,9 @@ test('renders a desktop workspace without browser errors', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1050 });
   await mockApi(page);
   await page.goto('/');
+  await expect(page).toHaveTitle('Payment Incident Investigator');
+  await expect(page.locator('.brand')).toContainText('Payment Incident Investigator');
+  expect((await page.request.get('/favicon.svg')).status()).toBe(200);
   await expect(page.getByRole('heading', { name: /Separate what happened/ })).toBeVisible();
   await page.screenshot({ path: '/tmp/incident-investigator-ui-desktop.png', fullPage: true });
   await chooseCase(page);

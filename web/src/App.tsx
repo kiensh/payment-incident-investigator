@@ -103,7 +103,7 @@ export default function App() {
   return <>
     <a className="skip-link" href="#investigation-form">Skip to investigation</a>
     <header className="app-header">
-      <div className="header-inner"><a className="brand" href="#"><span className="brand-mark" aria-hidden="true"><span /></span><span>Payment Investigator<small>Evidence before explanation</small></span></a><span className="read-only-label">Read-only workspace</span></div>
+      <div className="header-inner"><a className="brand" href="#"><span className="brand-mark" aria-hidden="true"><span /></span><span>Payment Incident Investigator<small>Evidence before explanation</small></span></a><span className="read-only-label">Read-only workspace</span></div>
     </header>
     <div className="demo-banner"><div><span className="demo-tag">DEMO</span><p><strong>Synthetic payment evidence.</strong> Lifecycle records are generated for demonstration, not real customer transactions.</p></div></div>
     <main className="workspace-shell">
