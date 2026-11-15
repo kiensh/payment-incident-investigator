@@ -11,7 +11,6 @@ import json
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from pathlib import Path
 
 import anthropic
 import httpx
@@ -243,9 +242,11 @@ def test_accounting_values_drop_nonfinite_negative_boolean_and_string(bad):
 def test_usage_and_private_reasoning_never_reflected_in_api_or_ledger(fixture_case, monkeypatch):
     settings, body, _, _ = fixture_case
     count = 0
+    # Valid protocol fields plus untrusted extension keys exercise the success path.
+    # Invalid declared fields are rejected separately, before SDK serialization.
     dirty = {"input_tokens": 9, "output_tokens": 0, MARKER: 999,
-             "cache_read_input_tokens": MARKER, "cache_creation_input_tokens": float("inf"),
-             "input_tokens_details": {"cached_tokens": 7, MARKER: 111}, "service_tier": MARKER}
+             "cache_read_input_tokens": 7, "cache_creation_input_tokens": 0,
+             "input_tokens_details": {"cached_tokens": 7, MARKER: 111}, "service_tier": "standard"}
 
     def handler(request):
         nonlocal count
@@ -283,10 +284,28 @@ async def test_usage_secret_values_not_echoed_to_python_warnings(fixture_case, m
     install_transport(monkeypatch, lambda request: stream_response(sse(usage=dirty)))
     client = BridgeClient(settings, RequestBudget(settings.budget_path))
     try:
-        await client.complete("stable", [{"role": "user", "content": "synthetic check"}], [])
+        # Invalid declared usage fields now fail closed, rather than being serialized.
+        with pytest.raises(BridgeFailure, match="invalid or incomplete") as caught:
+            await client.complete("stable", [{"role": "user", "content": "synthetic check"}], [])
+        assert MARKER not in str(caught.value)
     finally:
         await client.close()
     assert MARKER not in "\n".join(str(item.message) for item in recwarn)
+
+
+@pytest.mark.parametrize("invalid", [MARKER, float("inf"), None])
+def test_invalid_declared_usage_is_rejected_without_warnings(fixture_case, monkeypatch, recwarn, invalid):
+    settings, body, _, _ = fixture_case
+    dirty = {"input_tokens": invalid, "output_tokens": 0, "cache_read_input_tokens": MARKER}
+    install_transport(monkeypatch, lambda request: stream_response(sse(usage=dirty)))
+    with TestClient(create_app(settings), raise_server_exceptions=False) as api:
+        response = api.post("/api/investigate", json=body)
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "bridge_unavailable"
+    assert MARKER not in response.text
+    assert not list(recwarn)
+    with sqlite3.connect(settings.budget_path) as conn:
+        assert conn.execute("SELECT status, usage FROM requests").fetchall() == [("infrastructure_error", "{}")]
 
 
 def test_exhausted_budget_does_not_touch_transport_and_survives_new_clients(fixture_case, monkeypatch):

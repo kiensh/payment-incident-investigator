@@ -28,6 +28,23 @@ def test_independently_authored_incidents_through_real_api(index: int, tmp_path:
     assert score_result(response.json(), expected) == []
 
 
+def test_synthetic_disclaimer_is_not_a_data_quality_diagnosis(tmp_path):
+    from evals.final_holdout.prepare import build
+
+    payments, records = build()
+    payment = payments[0]
+    evidence = [record for record in records if record.payment_id == payment.id]
+    result = analyze(payment, evidence)
+    assert not any(f.rule_id == "source_context" for f in result.unknowns)
+    assert not any("currency, or timezone warnings" in f.text for f in result.unknowns)
+    db = tmp_path / "warning.sqlite"
+    create_database(db, [payment], evidence)
+    with TestClient(create_app(Settings(database=db))) as client:
+        response = client.post("/api/investigate", json={"payment_id": payment.id, "question": payment.symptom})
+    assert response.status_code == 200
+    assert payment.warnings[0] in response.json()["data_warnings"]
+
+
 def test_authorization_conflict_does_not_quote_either_amount_as_confirmed():
     payments, records = observations()
     evidence = [record for record in records if record.payment_id == payments[7].id]

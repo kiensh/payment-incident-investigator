@@ -55,7 +55,7 @@ def audit_support(result: dict) -> list[str]:
 
     # The public summary must consist of complete cited findings, never new prose.
     candidates = []
-    for section in ("confirmed_facts", "discrepancies", "unknowns"):
+    for section in ("confirmed_facts", "discrepancies", "unknowns", "next_checks"):
         for claim in result[section]:
             citation = " [" + ", ".join(claim["evidence_ids"]) + "]" if claim["evidence_ids"] else ""
             candidates.append(claim["text"] + citation)

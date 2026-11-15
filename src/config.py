@@ -21,7 +21,7 @@ class Settings:
     budget_path: Path = ROOT / "artifacts/bridge-budget.sqlite"
     request_limit: int = 150
     request_timeout: float = 60
-    max_model_calls: int = 5
+    max_model_calls: int = 6
 
     def __post_init__(self) -> None:
         if self.mode not in ("mock", "live"):

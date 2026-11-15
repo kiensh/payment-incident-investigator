@@ -19,7 +19,7 @@ Explain the customer's question by choosing the most relevant supplied Finding I
 short summary. Do not write new factual prose or diagnoses: the server composes the cited
 explanation from your selected, already validated findings and displays every critical
 fact, discrepancy, unknown and next check separately. This restriction is intentional.
-Select 1–4 IDs from confirmed_facts, discrepancies or unknowns, not hypothetical causes.
+Select 1–4 IDs from confirmed_facts, discrepancies, unknowns or next_checks, not hypothetical causes.
 Never select an ID you have not received from check_inconsistencies. Read at least one
 relevant runbook before finishing. Do not include private reasoning or confidence scores.
 

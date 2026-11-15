@@ -109,8 +109,10 @@ def run(database: Path, expectations: Path, output: Path, settings: Settings,
         "expectations": str(expectations.relative_to(ROOT)) if expectations.is_relative_to(ROOT) else expectations.name,
         "selected": len(rows), "counts": counts,
         "answer_pass_rate": counts["pass"] / (counts["pass"] + counts["incorrect"]) if counts["pass"] + counts["incorrect"] else None,
-        "model_requests": sum(row.get("result", {}).get("technical", {}).get("model_requests", 0) for row in rows),
-        "request_count_note": "Successful results only; persistent bridge-budget ledger also counts failed/incomplete investigations.",
+        "model_requests": sum(row.get("result", {}).get("technical", {}).get("model_requests", 0)
+                              + row.get("error", {}).get("error", {}).get("diagnostics", {}).get("model_requests", 0)
+                              for row in rows),
+        "request_count_note": "Includes success and available failure diagnostics; persistent bridge-budget ledger also counts failures without diagnostics.",
         "duration_seconds": round(perf_counter() - started, 2), "cases": rows,
     }
     output.parent.mkdir(parents=True, exist_ok=True)

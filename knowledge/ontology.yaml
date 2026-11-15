@@ -1,4 +1,4 @@
-version: '1.1.0'
+version: '1.1.1'
 provider_model: stripe-payment-intent-inspired-demo
 scope: Read-only evidence interpretation; not a live provider connector or settlement ledger.
 concepts:

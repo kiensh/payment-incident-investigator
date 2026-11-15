@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from time import perf_counter
 from typing import Protocol
 from uuid import uuid4
@@ -17,7 +18,9 @@ REQUIRED_TOOLS = {"get_payment_evidence", "get_attempts_and_events", "check_inco
 
 
 class AgentFailure(RuntimeError):
-    pass
+    def __init__(self, message: str, diagnostics: dict | None = None) -> None:
+        super().__init__(message)
+        self.diagnostics = diagnostics
 
 
 class ModelClient(Protocol):
@@ -45,7 +48,7 @@ def _validate_selection(selection: Selection, session: ToolSession) -> list[Find
     called = {call["name"] for call in session.calls}
     if not REQUIRED_TOOLS.issubset(called) or not session.runbooks:
         raise AgentFailure("The agent did not obtain the required evidence and procedures.")
-    allowed = _findings(session.analysis, ("confirmed_facts", "discrepancies", "unknowns"))
+    allowed = _findings(session.analysis, ("confirmed_facts", "discrepancies", "unknowns", "next_checks"))
     if any(fid not in allowed for fid in selection.summary_finding_ids):
         raise AgentFailure("The model selected unsupported findings.")
     if any(rid not in session.runbooks for rid in selection.runbook_ids):
@@ -88,7 +91,7 @@ def _render(payment: Payment, question: str, session: ToolSession, summary: list
 
 
 async def investigate(payment: Payment, evidence: list[Evidence], question: str,
-                      client: ModelClient | None = None, max_calls: int = 5) -> dict:
+                      client: ModelClient | None = None, max_calls: int = 6) -> dict:
     started = perf_counter()
     if len(evidence) > 250:
         raise AgentFailure("Evidence exceeds this MVP's bounded per-payment limit.")
@@ -109,6 +112,7 @@ async def investigate(payment: Payment, evidence: list[Evidence], question: str,
         {"role": "user", "content": json.dumps({"payment_id": payment.id, "customer_question": question})},
     ]
     tools = tool_definitions()
+    selection_errors: list[str] = []
     for _ in range(max_calls):
         response = await client.complete(system, messages, tools)
         if response.stop_reason not in ("end_turn", "tool_use"):
@@ -134,12 +138,27 @@ async def investigate(payment: Payment, evidence: list[Evidence], question: str,
                                 "content": json.dumps(result), "is_error": is_error})
             messages.append({"role": "user", "content": results})
             continue
-        content = "".join(block.text for block in response.content if block.type == "text")
+        content = "".join(block.text for block in response.content if block.type == "text").strip()
+        fenced = re.fullmatch(r"```(?:json)?\s*\n(.*?)\n```", content, flags=re.DOTALL | re.IGNORECASE)
+        if fenced:
+            content = fenced.group(1)
         try:
             selection = Selection.model_validate_json(content)
             summary = _validate_selection(selection, session)
-        except (ValidationError, AgentFailure):
-            messages.append({"role": "user", "content": "Conclusion validation failed. Obtain all required evidence and a runbook, then return only the requested JSON using exact finding and runbook IDs from tool results."})
-            continue
-        return _render(payment, question, session, summary, "live", started, client)
-    raise AgentFailure("The agent reached its bounded step limit without a supported conclusion. Retry the investigation or inspect the evidence offline.")
+        except ValidationError:
+            reason = "The conclusion did not match the required JSON schema."
+        except AgentFailure as exc:
+            reason = str(exc)
+        else:
+            return _render(payment, question, session, summary, "live", started, client)
+        selection_errors.append(reason)
+        messages.append({"role": "user", "content": f"Conclusion validation failed: {reason} Obtain all required evidence and a runbook, then return only the requested JSON using exact finding and runbook IDs from tool results."})
+    raise AgentFailure(
+        "The agent reached its bounded step limit without a supported conclusion. Retry the investigation or inspect the evidence offline.",
+        diagnostics={
+            "tool_calls": session.calls, "selection_errors": selection_errors,
+            "model_requests": client.requests, "retries": client.retries, "usage": client.usage,
+            "duration_ms": round((perf_counter() - started) * 1000, 2),
+            "applied_rules": session.analysis.applied_rules if session.analysis else [],
+        },
+    )

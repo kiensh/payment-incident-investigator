@@ -9,13 +9,15 @@ from tests.test_api import observations
 
 
 class ScriptedClient:
-    def __init__(self, unsupported=False, stop_reason=None):
+    def __init__(self, unsupported=False, stop_reason=None, section="confirmed_facts", fenced=False):
         self.requests = 0
         self.retries = 0
         self.usage = []
         self.model = "scripted-test-not-live"
         self.unsupported = unsupported
         self.stop_reason = stop_reason
+        self.section = section
+        self.fenced = fenced
 
     async def complete(self, system, messages, tools):
         self.requests += 1
@@ -34,8 +36,9 @@ class ScriptedClient:
             results = [json.loads(block["content"]) for block in messages[2]["content"]]
             analysis = next(result for result in results if "payment_state" in result)
             book = next(result for result in results if "runbooks" in result)["runbooks"][0]
-            fid = "made_up" if self.unsupported else analysis["confirmed_facts"][0]["id"]
-            content = [{"type": "text", "text": json.dumps({"summary_finding_ids": [fid], "runbook_ids": [book["id"]]})}]
+            fid = "made_up" if self.unsupported else analysis[self.section][0]["id"]
+            text = json.dumps({"summary_finding_ids": [fid], "runbook_ids": [book["id"]]})
+            content = [{"type": "text", "text": f"```json\n{text}\n```" if self.fenced else text}]
             stop = "end_turn"
         return Message.model_validate({"id": f"msg_{self.requests}", "type": "message", "role": "assistant", "model": self.model, "content": content, "stop_reason": stop, "stop_sequence": None, "usage": {"input_tokens": 0, "output_tokens": 0}})
 
@@ -58,8 +61,24 @@ async def test_tool_loop_preserves_context_but_never_displays_private_blocks():
 
 async def test_unrecognized_claims_never_reach_the_answer():
     payment, evidence = observations()
-    with pytest.raises(AgentFailure, match="step limit"):
+    with pytest.raises(AgentFailure, match="step limit") as caught:
         await investigate(payment, evidence, payment.symptom, ScriptedClient(unsupported=True), max_calls=3)
+    diagnostic = caught.value.diagnostics
+    assert diagnostic["model_requests"] == 3
+    assert len(diagnostic["tool_calls"]) == 4
+    assert diagnostic["selection_errors"] == ["The model selected unsupported findings."] * 2
+    assert "test-signature" not in json.dumps(diagnostic)
+    assert "not for UI" not in json.dumps(diagnostic)
+
+
+@pytest.mark.parametrize("fenced", [True, False])
+async def test_summary_may_include_validated_read_only_next_checks(fenced):
+    payment, evidence = observations()
+    result = await investigate(payment, evidence, "What should support check next?",
+                               ScriptedClient(section="next_checks", fenced=fenced))
+    assert result["next_checks"][0]["text"] in result["summary"]
+    assert "Read" in result["summary"]
+    assert result["technical"]["model_requests"] == 2
 
 
 @pytest.mark.parametrize("reason", ["max_tokens", "refusal", "pause_turn"])

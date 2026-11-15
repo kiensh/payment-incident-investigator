@@ -49,7 +49,7 @@ INVESTIGATOR_MODE=live BRIDGE_MODEL=claude-opus-5.5 \
 
 Alternatively copy `.env.example` to `.env`, set mode/model, and restrict the file (`chmod 600 .env`) before adding any future credential. The current bridge ignores client auth; the SDK supplies a **public sentinel** and no secret is needed. The browser never sees bridge credentials or contacts the bridge. Inherited `ANTHROPIC_CUSTOM_HEADERS` are deliberately rejected before transport; if your shell sets them for another application, launch this backend with `env -u ANTHROPIC_CUSTOM_HEADERS` rather than sharing those headers.
 
-There is **no automatic external-provider or mock fallback**. An unavailable/rate-limited bridge or an unsupported conclusion fails visibly. Retry means rerun the investigation, not retry payment. See [bridge protocol and accounting](docs/bridge.md).
+There is **no automatic external-provider or mock fallback**. Investigations allow at most six model calls. An unavailable/rate-limited bridge, malformed protocol response, or unsupported conclusion fails visibly. Step-limit errors include safe tool/count/validation diagnostics, not private reasoning. Retry means rerun the investigation, not retry payment. See [bridge protocol and accounting](docs/bridge.md).
 
 `BRIDGE_REQUEST_LIMIT` defaults to **150 total application model requests**, including failed calls, enforced in the ignored persistent `artifacts/bridge-budget.sqlite`. SDK retries are disabled. Do not remove/reset the ledger to bypass the build budget. The shared bridge's internal upstream retries, actual monetary costs and coding-agent usage are not covered by that counter. Cache fields are reported only when exposed; no cost savings are claimed.
 

@@ -91,9 +91,16 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
     if source:
         add("confirmed_facts", "source_context",
             "The original synthetic transaction row is coarse source context, not authorization, capture, or webhook history.", source)
-    if payment.warnings:
-        add("unknowns", "source_context",
-            "Source identity, currency, or timezone warnings remain unresolved; no identity merge or missing value was inferred.", source)
+    for item in source:
+        unspecified = ["currency"] if item.data["currency"] is None else []
+        if item.occurred_at is None:
+            unspecified.append("timestamp")
+        elif _time(item.occurred_at) is None:
+            unspecified.append("timezone")
+        if unspecified:
+            add("unknowns", "source_context",
+                f"The original source record does not specify {' or '.join(unspecified)}; no missing value was inferred.", [item])
+    # Free-text warnings are preserved verbatim in the workspace, not promoted to diagnoses.
 
     captures = _group(by_kind["Capture"], "capture_id")
     successes: list[Evidence] = []

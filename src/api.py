@@ -23,8 +23,12 @@ from src.domain.models import Analysis, Evidence
 from src.storage.repository import Repository
 
 
-def error(status: int, code: str, message: str, retryable: bool = False) -> JSONResponse:
-    return JSONResponse({"error": {"code": code, "message": message, "retryable": retryable}}, status_code=status)
+def error(status: int, code: str, message: str, retryable: bool = False,
+          diagnostics: dict | None = None) -> JSONResponse:
+    detail: dict = {"code": code, "message": message, "retryable": retryable}
+    if diagnostics is not None:
+        detail["diagnostics"] = diagnostics
+    return JSONResponse({"error": detail}, status_code=status)
 
 
 class BodyLimitMiddleware:
@@ -149,7 +153,7 @@ def create_app(settings: Settings | None = None, static_dir: Path | None = None)
         except BridgeFailure as exc:
             return error(502, "bridge_unavailable", str(exc), exc.retryable)
         except AgentFailure as exc:
-            return error(502, "unsupported_conclusion", str(exc), True)
+            return error(502, "unsupported_conclusion", str(exc), True, exc.diagnostics)
         finally:
             try:
                 if client is not None:

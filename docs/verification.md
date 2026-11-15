@@ -49,3 +49,13 @@ Final boundary verifier's68 independent tests:62 passed,6 failed (full present s
 Browser interaction still passed on the frozen candidate: one live result in6,647ms, evidence and trace inspection at375px, plus mocked error→keyboard retry recovery with two identical investigation-only requests. Original frontend28/component and7 Chromium tests passed. No additional UI defect was identified. Current candidate is not yet final-accepted; another correction and fresh independent check are required.
 
 The five new cases are also now exposed because the generic-warning finding informs a fix. All independent expected outcomes were model-verifier-authored, not human payment-expert annotations. No live F02/F03 run was performed.
+
+### Correction after second review
+
+Enabled SDK response-schema validation before streaming accumulation and handled malformed-event exceptions at the bridge boundary. The original five malformed-stream probes now return structured errors. Invalid declared usage fields are **rejected**, not merely sanitized after serialization. Privacy tests were explicitly split: valid protocol fields with untrusted extension keys still test successful sanitized output/private-block exclusion; invalid declared fields now require redacted502 plus no warnings/ledger leakage. The earlier unsplit test inputs remain in commit `26c3c54`. No privacy assertion was removed; three additional malformed-usage cases cover the stricter rejection policy.
+
+Source quality unknowns now come from actual missing source-record currency/time fields with record citations. Generic disclaimers remain visible verbatim under data warnings without becoming categorical quality claims.
+
+The agent's ceiling increased from five to six calls, adding one bounded recovery round; it accepts whole JSON-fence wrappers and can include validated read-only next checks in its composed summary. It still rejects free prose, invented findings and hypotheses promoted as facts. Incomplete runs now expose actual tool traces, request counts and fixed selection-validation reasons, excluding model text/reasoning. **The original H10 failure's cause remains unknown**; these are bounded reliability/diagnostic improvements, not a claimed reconstruction of that failure. A fresh live verification is still required.
+
+Coordinator automated check:200 Python tests pass without serializer warnings; Python typecheck passes. New live request usage remains zero during this correction.

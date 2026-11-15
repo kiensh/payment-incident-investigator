@@ -60,6 +60,7 @@ class BridgeClient:
             api_key=settings.bridge_token or "copilot-bridge",
             base_url=settings.bridge_url.rstrip("/") + "/cc",
             max_retries=0,
+            _strict_response_validation=True,
             timeout=settings.request_timeout,
             http_client=anthropic.DefaultAsyncHttpxClient(trust_env=False, follow_redirects=False),
         )
@@ -85,7 +86,7 @@ class BridgeClient:
                     output_config={"effort": "medium"},
                 ) as stream:
                     message = await stream.get_final_message()
-            usage = numeric_usage(message.usage.model_dump())
+            usage = numeric_usage(message.usage.model_dump(warnings=False))
             copilot = numeric_usage(getattr(message, "copilot_usage", None))
             if copilot:
                 usage["copilot_usage"] = copilot
@@ -102,7 +103,8 @@ class BridgeClient:
             raise BridgeFailure(f"The local bridge returned HTTP {exc.status_code}; no financial action occurred.", exc.status_code >= 500) from exc
         except (anthropic.APIConnectionError, TimeoutError) as exc:
             raise BridgeFailure("The local bridge could not complete the request in time. No alternative provider was used.") from exc
-        except (ValueError, AssertionError, anthropic.APIResponseValidationError) as exc:
+        except (ValueError, AttributeError, TypeError, LookupError, AssertionError,
+                anthropic.APIResponseValidationError) as exc:
             raise BridgeFailure("The bridge returned an invalid or incomplete response.") from exc
         finally:
             self.budget.finish(request_id, status, round((perf_counter() - started) * 1000, 2), usage)
