@@ -105,7 +105,7 @@ def run(database: Path, expectations: Path, output: Path, settings: Settings,
               for key in ("pass", "incorrect", "infrastructure_error")}
     report = {
         "recorded_at": datetime.now(timezone.utc).isoformat(),
-        "mode": settings.mode, "model": settings.bridge_model if settings.mode == "live" else None,
+        "mode": settings.mode, "model": settings.model_name if settings.mode == "live" else None,
         "expectations": str(expectations.relative_to(ROOT)) if expectations.is_relative_to(ROOT) else expectations.name,
         "selected": len(rows), "counts": counts,
         "answer_pass_rate": counts["pass"] / (counts["pass"] + counts["incorrect"]) if counts["pass"] + counts["incorrect"] else None,

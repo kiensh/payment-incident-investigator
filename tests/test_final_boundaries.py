@@ -52,7 +52,7 @@ def fixture_case(tmp_path):
                          data={"observation_id": "app_boundary", "status": "pending", "channel": "checkout"})]
     database = tmp_path / "evidence.sqlite"
     create_database(database, [payment], evidence)
-    settings = Settings(mode="live", database=database, bridge_model="claude-opus-5.5",
+    settings = Settings(mode="live", database=database, model_name="claude-opus-5.5",
                         budget_path=tmp_path / "budget.sqlite", max_model_calls=2)
     return settings, {"payment_id": payment.id, "question": payment.symptom}, payment, evidence
 
@@ -97,7 +97,7 @@ def stream_response(payload):
 @pytest.mark.parametrize("configured_token", ["", "configured-synthetic-bridge-token"])
 async def test_inherited_credentials_and_origin_cannot_override_explicit_bridge(fixture_case, monkeypatch, tmp_path, configured_token):
     settings, _, _, _ = fixture_case
-    settings = replace(settings, bridge_token=configured_token)
+    settings = replace(settings, model_api_key=configured_token)
     for name in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE",
                  "ANTHROPIC_IDENTITY_TOKEN", "ANTHROPIC_FEDERATION_RULE_ID",
                  "ANTHROPIC_ORGANIZATION_ID", "ANTHROPIC_SERVICE_ACCOUNT_ID"):
@@ -146,7 +146,7 @@ def test_all_nonempty_custom_headers_fail_before_transport_and_release_slots(fix
 @pytest.mark.parametrize("token", ["bad\n" + MARKER, "bad\r" + MARKER, "nonascii-☃-" + MARKER])
 def test_malformed_configured_token_is_structured_and_slots_survive(fixture_case, monkeypatch, token):
     settings, body, _, _ = fixture_case
-    settings = replace(settings, bridge_token=token)
+    settings = replace(settings, model_api_key=token)
     install_transport(monkeypatch, lambda request: httpx2.Response(503, text=MARKER))
     with TestClient(create_app(settings), raise_server_exceptions=False) as api:
         responses = [api.post("/api/investigate", json=body) for _ in range(4)]
@@ -155,9 +155,9 @@ def test_malformed_configured_token_is_structured_and_slots_survive(fixture_case
 
 
 @pytest.mark.parametrize("kwargs", [
-    {"bridge_url": "http://localhost:bad"}, {"bridge_url": "http://localhost:0"},
-    {"bridge_url": "http://localhost:65536"}, {"bridge_url": "http://localhost@evil.invalid"},
-    {"bridge_url": "http://localhost/%2e%2e"}, {"bridge_url": "https://localhost/#secret"},
+    {"model_base_url": "http://localhost:bad"}, {"model_base_url": "http://localhost:0"},
+    {"model_base_url": "http://localhost:65536"}, {"model_base_url": "http://localhost@evil.invalid"},
+    {"model_base_url": "http://localhost/%2e%2e"}, {"model_base_url": "https://localhost/#secret"},
     {"request_timeout": float("nan")}, {"request_timeout": float("inf")},
     {"request_timeout": 0}, {"request_timeout": 121}, {"request_limit": 0},
     {"request_limit": 151}, {"max_model_calls": 0}, {"max_model_calls": 7},
@@ -405,7 +405,7 @@ def test_origin_host_input_boundaries_before_budget(fixture_case, monkeypatch):
     with TestClient(create_app(settings), raise_server_exceptions=False) as api:
         assert api.post("/api/investigate", json=body, headers={"Origin": "https://outside.invalid"}).status_code == 403
         assert api.post("/api/investigate", json=body, headers={"Host": "outside.invalid"}).status_code == 400
-        assert api.post("/api/investigate", json={**body, "bridge_url": "https://outside.invalid"}).status_code == 422
+        assert api.post("/api/investigate", json={**body, "model_base_url": "https://outside.invalid"}).status_code == 422
         assert api.post("/api/investigate", content=b"a" * 16385).status_code == 413
         assert api.post("/api/investigate", json={**body, "payment_id": "../../evals/expected/dev.json"}).status_code == 422
         assert api.post("/api/refund", json=body).status_code in (404, 405)

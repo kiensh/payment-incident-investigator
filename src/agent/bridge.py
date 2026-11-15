@@ -50,15 +50,15 @@ class BridgeClient:
             raise BridgeFailure("Inherited SDK custom headers are not allowed for this bridge. Start the backend with ANTHROPIC_CUSTOM_HEADERS unset.", False)
         self.settings = settings
         self.budget = budget
-        self.model = settings.bridge_model
+        self.model = settings.model_name
         self.requests = 0
         self.retries = 0
         self.usage: list[dict] = []
-        # This bridge ignores client auth and owns its upstream OAuth credentials.
-        # Explicit public sentinel prevents unrelated SDK environment auth discovery.
+        # The current local endpoint needs no API key; never discover ambient OAuth.
+        # Explicit settings (or a public sentinel) keep SDK auth selection bounded.
         self.client = anthropic.AsyncAnthropic(
-            api_key=settings.bridge_token or "copilot-bridge",
-            base_url=settings.bridge_url.rstrip("/") + "/cc",
+            api_key=settings.model_api_key or "copilot-bridge",
+            base_url=settings.model_base_url,
             max_retries=0,
             _strict_response_validation=True,
             timeout=settings.request_timeout,

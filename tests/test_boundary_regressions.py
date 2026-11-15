@@ -17,7 +17,7 @@ def live_fixture(tmp_path: Path):
     payment, evidence = observations()
     db = tmp_path / "case.sqlite"
     create_database(db, [payment], evidence)
-    settings = Settings(mode="live", database=db, bridge_model="claude-opus-5.5",
+    settings = Settings(mode="live", database=db, model_name="claude-opus-5.5",
                         budget_path=tmp_path / "budget.sqlite")
     body = {"payment_id": payment.id, "question": payment.symptom}
     return settings, body

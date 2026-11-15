@@ -11,7 +11,7 @@ from src.config import Settings
 
 
 def make_client(tmp_path: Path, handler):
-    settings = Settings(mode="live", bridge_model="claude-opus-5.5", budget_path=tmp_path / "budget.sqlite")
+    settings = Settings(mode="live", model_name="claude-opus-5.5", budget_path=tmp_path / "budget.sqlite")
     budget = RequestBudget(settings.budget_path, 5)
     client = BridgeClient(settings, budget)
     return client, budget, handler
@@ -78,6 +78,42 @@ async def test_streaming_usage_is_not_double_counted(tmp_path: Path):
     await client.close()
 
 
+@pytest.mark.parametrize("base_url,path", [
+    ("http://127.0.0.1:9000", "/v1/messages"),
+    ("http://127.0.0.1:9000/", "/v1/messages"),
+    ("http://localhost:8765/cc", "/cc/v1/messages"),
+    ("http://localhost:8765/cc/", "/cc/v1/messages"),
+])
+@pytest.mark.parametrize("api_key", ["", "synthetic-configured-api-key"])
+async def test_configured_sdk_base_url_and_api_key_are_used_without_path_rewriting(
+    tmp_path, monkeypatch, base_url, path, api_key,
+):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        assert str(request.url) == base_url.rstrip("/") + "/v1/messages"
+        assert request.url.path == path
+        assert request.headers["x-api-key"] == (api_key or "copilot-bridge")
+        assert "authorization" not in request.headers
+        assert json.loads(request.content)["model"] == "configured-model-id"
+        return httpx2.Response(503, json={"error": {"type": "api_error", "message": "unavailable"}})
+
+    factory = anthropic.DefaultAsyncHttpxClient
+    monkeypatch.setattr(anthropic, "DefaultAsyncHttpxClient", lambda **kwargs: factory(
+        transport=httpx2.MockTransport(handler), **kwargs))
+    settings = Settings(mode="live", model_base_url=base_url, model_api_key=api_key,
+                        model_name="configured-model-id", budget_path=tmp_path / "budget.sqlite")
+    budget = RequestBudget(settings.budget_path, 1)
+    client = BridgeClient(settings, budget)
+    try:
+        with pytest.raises(BridgeFailure):
+            await client.complete("stable", [{"role": "user", "content": "synthetic check"}], [])
+        assert len(requests) == budget.count() == 1
+    finally:
+        await client.close()
+
+
 def test_usage_drops_untrusted_strings_keys_and_nonfinite_numbers():
     assert numeric_usage({"input_tokens": 9, "message": "private", "secret-in-a-key": 17,
                           "output_tokens": float("nan"), "cache_creation_input_tokens": float("inf"),
@@ -87,7 +123,7 @@ def test_usage_drops_untrusted_strings_keys_and_nonfinite_numbers():
 
 def test_inherited_custom_headers_fail_closed_before_transport(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_CUSTOM_HEADERS", "Authorization: Bearer synthetic-test-secret\nX-Api-Key: synthetic-test-key\nX-Other: synthetic-test-value")
-    settings = Settings(mode="live", bridge_model="claude-opus-5.5", budget_path=tmp_path / "budget.sqlite")
+    settings = Settings(mode="live", model_name="claude-opus-5.5", budget_path=tmp_path / "budget.sqlite")
     budget = RequestBudget(settings.budget_path)
     with pytest.raises(BridgeFailure) as caught:
         BridgeClient(settings, budget)

@@ -117,7 +117,7 @@ def create_app(settings: Settings | None = None, static_dir: Path | None = None)
     @app.get("/api/health")
     async def health() -> dict:
         return {"status": "ok", "mode": settings.mode, "data_ready": settings.database.is_file(),
-                "model": settings.bridge_model if settings.mode == "live" else None}
+                "model": settings.model_name if settings.mode == "live" else None}
 
     @app.get("/api/cases", response_model=None)
     async def cases() -> dict | JSONResponse:

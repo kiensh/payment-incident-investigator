@@ -8,7 +8,7 @@ Ask: “The customer saw payment failed, but another system says it completed. W
 
 The workspace separates **facts, discrepancies, hypotheses, unknowns and safe checks**, with inspectable record citations, quality warnings, runbooks and actual tool traces. One bounded agent consults evidence and procedures; deterministic rules own financial facts. No refunds, charge retries or financial-write capabilities exist.
 
-**Data disclaimer:** the Kaggle source and all lifecycle observations are synthetic. Generated lifecycle records are independent demonstrations, not reconstructed histories. The application has no payment-provider connection and moves no money. The only live integration is model inference through an existing local Copilot bridge.
+**Data disclaimer:** the Kaggle source and all lifecycle observations are synthetic. Generated lifecycle records are independent demonstrations, not reconstructed histories. The application has no payment-provider connection and moves no money. The only live integration is model inference through a configured local Anthropic-compatible endpoint.
 
 ## Verification and current review — 2026-11-15
 
@@ -42,26 +42,42 @@ npm --prefix web run dev
 
 Vite runs on loopback port 5173 and proxies `/api` to the backend on port 8000. The product still has one backend application.
 
-## Live agent mode — existing bridge only
+## Live agent mode — local endpoints only
 
-The expected bridge is already available at `http://localhost:8765`. Do not restart it or copy its OAuth credentials. Check its advertised catalog with this harmless discovery request:
+Configure the backend with standard Anthropic environment names: `ANTHROPIC_BASE_URL` is the **full SDK base URL**, `ANTHROPIC_API_KEY` is the client credential sent as `x-api-key`, and `ANTHROPIC_MODEL` is the exact model ID advertised by that endpoint. These names do **not** enable remote providers: only loopback HTTP(S) endpoints (`localhost`, `127.0.0.1`, or `::1`) with a root or `/cc` path, optionally ending in `/`, are allowed. The client does not append `/cc` implicitly.
+
+For example, the existing local Copilot bridge uses `http://localhost:8765/cc`, which is also the default base URL. Do not restart it or copy its OAuth credentials. Check its advertised catalog with this harmless discovery request:
 
 ```sh
 curl --fail --silent http://localhost:8765/cc/v1/models
 ```
 
-This installed bridge advertises **`claude-opus-5.5`** (the dot is intentional). Use the exact discovered ID:
+This installed endpoint advertises **`claude-opus-5.5`** (the dot is intentional). Use the exact discovered ID; it ignores client auth, so an empty `ANTHROPIC_API_KEY` selects the **public sentinel** `copilot-bridge`, not a secret:
 
 ```sh
-INVESTIGATOR_MODE=live BRIDGE_MODEL=claude-opus-5.5 \
+INVESTIGATOR_MODE=live ANTHROPIC_BASE_URL=http://localhost:8765/cc \
+  ANTHROPIC_MODEL=claude-opus-5.5 ANTHROPIC_API_KEY= \
   uv run uvicorn src.api:app --host 127.0.0.1 --port 8000
 ```
 
-Alternatively copy `.env.example` to `.env`, set mode/model, and restrict the file (`chmod 600 .env`) before adding any future credential. The current bridge ignores client auth; the SDK supplies a **public sentinel** and no secret is needed. The browser never sees bridge credentials or contacts the bridge. Inherited `ANTHROPIC_CUSTOM_HEADERS` are deliberately rejected before transport; if your shell sets them for another application, launch this backend with `env -u ANTHROPIC_CUSTOM_HEADERS` rather than sharing those headers.
+Alternatively copy `.env.example` to `.env`, configure mode/base URL/model, and restrict the file (`chmod 600 .env`) before adding any credential. **Shell environment variables override `.env`**, including `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY`; the commands here explicitly select the example local endpoint even if your shell configures another Anthropic service. `ANTHROPIC_AUTH_TOKEN`, Anthropic profiles and workload identity federation (WIF) are not used. An explicit API key or sentinel prevents ambient SDK credential discovery. The browser never sees model credentials or contacts the endpoint. Inherited `ANTHROPIC_CUSTOM_HEADERS` are deliberately rejected before transport; if your shell sets them for another application, launch this backend with `env -u ANTHROPIC_CUSTOM_HEADERS` rather than sharing those headers. Environment proxy routing and redirects remain disabled.
 
-There is **no automatic external-provider or mock fallback**. Investigations allow at most six model calls. An unavailable/rate-limited bridge, malformed protocol response, or unsupported conclusion fails visibly. Step-limit errors include safe tool/count/validation diagnostics, not private reasoning. Retry means rerun the investigation, not retry payment. See [bridge protocol and accounting](docs/bridge.md).
+There is **no direct public API support or automatic external-provider/mock fallback**. Investigations allow at most six model calls. An unavailable/rate-limited endpoint, malformed protocol response, or unsupported conclusion fails visibly. Step-limit errors include safe tool/count/validation diagnostics, not private reasoning. Retry means rerun the investigation, not retry payment. See [bridge protocol and accounting](docs/bridge.md) for verified details of the example service.
 
-`BRIDGE_REQUEST_LIMIT` defaults to **150 total application model requests**, including failed calls, enforced in the ignored persistent `artifacts/bridge-budget.sqlite`. SDK retries are disabled. Do not remove/reset the ledger to bypass the build budget. The shared bridge's internal upstream retries, actual monetary costs and coding-agent usage are not covered by that counter. Cache fields are reported only when exposed; no cost savings are claimed.
+`INVESTIGATOR_REQUEST_LIMIT` defaults to **150 total application model requests** and cannot exceed 150. Failed calls count, and the ignored persistent ledger remains **`artifacts/bridge-budget.sqlite`** (configured by `INVESTIGATOR_BUDGET_PATH`). SDK retries are disabled. Do not change the ledger path, remove it or reset it to bypass the build budget. `INVESTIGATOR_TIMEOUT_SECONDS` defaults to 60 seconds (allowed range: 1–120). The shared bridge's internal upstream retries, actual monetary costs and coding-agent usage are not covered by that counter. Cache fields are reported only when exposed; no cost savings are claimed.
+
+### Configuration migration
+
+Rename existing `.env` entries and shell exports; **there are no legacy aliases**. For the installed bridge, the old root URL must become the full SDK base URL shown below. This naming cleanup does not change model IDs, reset the existing ledger or authorize any additional live requests.
+
+| Previous name | Current name |
+| --- | --- |
+| `BRIDGE_URL` | `ANTHROPIC_BASE_URL` — use `http://localhost:8765/cc`, not the old `http://localhost:8765` |
+| `BRIDGE_TOKEN` | `ANTHROPIC_API_KEY` |
+| `BRIDGE_MODEL` | `ANTHROPIC_MODEL` |
+| `BRIDGE_REQUEST_LIMIT` | `INVESTIGATOR_REQUEST_LIMIT` |
+| `BRIDGE_TIMEOUT_SECONDS` | `INVESTIGATOR_TIMEOUT_SECONDS` |
+| `BRIDGE_BUDGET_PATH` | `INVESTIGATOR_BUDGET_PATH` — keep the same ledger file |
 
 ### API contract
 
@@ -95,8 +111,9 @@ npm --prefix web audit
 # End-to-end rules-only baseline through the actual FastAPI entry point
 uv run python -m evals.run --mode mock --output artifacts/eval-dev-mock.json
 
-# Live development evaluation (consumes the existing bridge request budget)
-BRIDGE_MODEL=claude-opus-5.5 uv run python -m evals.run \
+# Live development evaluation (consumes the existing request budget; no new allowance)
+ANTHROPIC_BASE_URL=http://localhost:8765/cc ANTHROPIC_MODEL=claude-opus-5.5 \
+  ANTHROPIC_API_KEY= uv run python -m evals.run \
   --mode live --output artifacts/eval-dev-live.json
 ```
 
