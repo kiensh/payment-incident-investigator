@@ -1,4 +1,4 @@
-version: '1.1.1'
+version: '1.2.0'
 provider_model: stripe-payment-intent-inspired-demo
 scope: Read-only evidence interpretation; not a live provider connector or settlement ledger.
 concepts:
@@ -31,7 +31,7 @@ concepts:
     relations:
       - {field: event_id, target: ProviderEvent}
   ApplicationStatusObservation:
-    definition: A customer-facing status observation at a particular time, not authoritative financial state.
+    definition: An application-status observation on one named channel at a particular time, not authoritative financial state.
     identity_field: observation_id
     relations: []
 policies:
@@ -43,7 +43,7 @@ policies:
   source_identity_policy: Never join unrelated merchant names by merchant_id or fill missing currency/timezone.
 rules:
   source_context: Original synthetic source rows are context, not lifecycle evidence.
-  capture_success: Distinct successful capture IDs establish observed captured amounts.
+  capture_success: Distinct successful capture IDs establish observed captured amounts; all observations retain their own chronology.
   capture_identity_conflict: Conflicting records for one capture ID require reconciliation.
   capture_pending: Pending capture is not a successful capture.
   capture_failed: Failed capture is distinct from failed payment or reversed authorization.
@@ -52,14 +52,15 @@ rules:
   authorization_amount_conflict: Unordered authorization amount or currency conflicts prevent quoting an exact held amount.
   attempt_observed: Attempt outcomes apply to attempts, not a count of charges.
   attempt_failure: Explicit current provider failure plus failed attempts can establish an observed failed payment attempt.
-  provider_canceled: A current canceled provider snapshot establishes canceled payment state absent conflicting success.
+  provider_canceled: A complete canceled provider snapshot establishes failed payment state only when supplied financial activity is covered by its chronology.
   provider_snapshot_conflict: Current provider snapshots are ambiguous or disagree with capture evidence.
+  provider_snapshot_coverage_gap: Newer or unordered financial activity prevents an older provider snapshot from establishing current terminal failure.
   missing_financial_evidence: Missing capture or terminal-failure evidence leaves payment state unknown.
   multiple_captures: Multiple distinct successful capture IDs warrant reconciliation, not an automatic duplicate-charge diagnosis.
   capture_amount_mismatch: Comparable provider expected and captured amounts differ; no currency conversion is inferred.
   currency_unavailable: Missing or incomparable currencies prevent monetary reconciliation.
-  app_observation: Application status is observed independently from provider financial state.
-  app_discrepancy: A later application observation disagrees with established financial evidence.
+  app_observation: Application status is observed independently per channel and separately from provider financial state.
+  app_discrepancy: A later application observation disagrees with established financial evidence; another channel's success is not recovery.
   app_precedes_financial: An earlier application status cannot establish a current discrepancy.
   app_order_unknown: Missing, naive, or tied timestamps cannot establish the latest conflicting application status.
   delivery_observed: Notification delivery outcomes do not change financial state.
@@ -69,6 +70,7 @@ rules:
   event_order_unknown: Tied or unavailable event clocks do not establish an ordering.
   missing_reference: Missing related evidence limits interpretation.
   notification_hypothesis: Delivery trouble may explain a stale application status, but causality needs application logs.
-  notification_unresolved: Failed notifications without a provably later delivery success need a read-only check even when payment and display agree.
+  notification_unresolved: Failed notifications need a read-only check; a delivery inquiry also requires evidence of successful delivery, independently of capture.
+  notification_processing_unknown: Delivery responses and financial agreement do not establish downstream notification processing.
   clock_inversion: A received-before-occurred record signals a clock-quality issue, not invented event ordering.
-  aligned_observations: Sufficient coherent financial and application observations need no escalation.
+  aligned_observations: An evidenced financial outcome and matching application observations can avoid escalation without proving every channel recovered or every inquiry is resolved.

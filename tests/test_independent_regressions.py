@@ -1,5 +1,6 @@
 """Exposed independent cases are regression evidence, not untouched hold-outs."""
 import json
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -14,18 +15,43 @@ from src.domain.rules import analyze
 from src.storage.repository import create_database
 
 
+def test_resolution_adjudication_preserves_original_and_changes_only_h09_rule_ban():
+    original_bytes = (ROOT / "evals/expected/holdout.json").read_bytes()
+    original = json.loads(original_bytes)
+    adjudicated = json.loads(
+        (ROOT / "evals/expected/holdout_resolution_adjudicated.json").read_text()
+    )
+    assert sha256(original_bytes).hexdigest() == adjudicated["original_oracle_sha256"] == (
+        "8b22e4ca4ce319f4d49ebcb3b27c75b227e8559cb68e3a901029f459e20fce68"
+    )
+    assert len(original["cases"]) == len(adjudicated["cases"]) == 10
+    for before, after in zip(original["cases"], adjudicated["cases"], strict=True):
+        expected = dict(before)
+        if before["payment_id"] == "pay_h09_7c9a":
+            expected["forbidden_rules"] = ["aligned_observations"]
+        assert after == expected
+
+
 @pytest.mark.parametrize("index", range(10))
 def test_independently_authored_incidents_through_real_api(index: int, tmp_path: Path):
     payments, records = observations()
     payment = payments[index]
     evidence = [record for record in records if record.payment_id == payment.id]
-    expected = json.loads((ROOT / "evals/expected/holdout.json").read_text())["cases"][index]
+    expected = json.loads(
+        (ROOT / "evals/expected/holdout_resolution_adjudicated.json").read_text()
+    )["cases"][index]
     db = tmp_path / "case.sqlite"
     create_database(db, [payment], evidence)
-    with TestClient(create_app(Settings(database=db))) as client:
+    with TestClient(create_app(Settings(mode="mock", database=db))) as client:
         response = client.post("/api/investigate", json={"payment_id": payment.id, "question": payment.symptom})
     assert response.status_code == 200
-    assert score_result(response.json(), expected) == []
+    result = response.json()
+    assert result["technical"]["model_requests"] == 0
+    assert score_result(result, expected) == []
+    if payment.id == "pay_h09_7c9a":
+        # Preserve visibility of the frozen oracle's intentionally unmodified raw result.
+        original = json.loads((ROOT / "evals/expected/holdout.json").read_text())["cases"][index]
+        assert score_result(result, original) == ["unexpected rule: app_precedes_financial"]
 
 
 def test_synthetic_disclaimer_is_not_a_data_quality_diagnosis(tmp_path):
@@ -65,11 +91,23 @@ def test_known_discrepancy_survives_an_untimed_observation(untimed_status):
     evidence = [Evidence(**{**r.model_dump(), "data": {**r.data, "status": untimed_status}})
                 if r.id == "h09_u2" else r for r in evidence]
     result = analyze(payments[8], list(reversed(evidence)))
+    assert (result.payment_state, result.disposition) == ("captured", "check_required")
     discrepancy = next(f for f in result.discrepancies if f.rule_id == "app_discrepancy")
     assert set(discrepancy.evidence_ids) == {"h09_c1", "h09_u3"}
-    assert "failed" in discrepancy.text
-    assert "app_precedes_financial" not in result.applied_rules
-    assert "app_order_unknown" in result.applied_rules
+    assert "failed" in discrepancy.text and "checkout" in discrepancy.text
+    assert "aligned_observations" not in result.applied_rules
+    historical = [f for f in result.unknowns if f.rule_id == "app_precedes_financial"]
+    assert len(historical) == 1
+    assert set(historical[0].evidence_ids) == {"h09_c1", "h09_u1"}
+    assert "status-export-a" in historical[0].text
+    unordered = [f for f in result.unknowns if f.rule_id == "app_order_unknown"]
+    if untimed_status == "failed":
+        assert unordered
+    for finding in unordered:
+        assert set(finding.evidence_ids) == {"h09_c1", "h09_u2"}
+        assert "status-export-b" in finding.text
+    # An untimed success in another channel need not create an ordering conflict.
+    # Neither variant may move the known checkout discrepancy into an ordering gap.
 
 
 @pytest.mark.parametrize("recovery_time,resolved", [

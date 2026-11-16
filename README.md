@@ -20,9 +20,22 @@ A real live-model walkthrough using synthetic evidence: select a reported sympto
 
 If the embedded player is unavailable in your browser, [open or download the WebM directly](https://raw.githubusercontent.com/kiensh/payment-incident-investigator/main/docs/assets/demo.webm).
 
+## Resolution-boundary follow-up — 2026-11-16
+
+Establishing a financial state is not the same as resolving every customer inquiry. The follow-up fixes four reproduced counterexamples:
+
+- A complete terminal snapshot cannot cover newer or unordered ongoing financial activity.
+- Notification questions retain missing-delivery/processing follow-up without changing the evidenced capture state.
+- Application status is evaluated per channel; another channel's newer success does not erase a post-capture failure.
+- Capture IDs are counted once for amounts, while earlier observations remain available for chronology and contradictions.
+
+Normal scoped financial answers still avoid unnecessary escalation. Historical pre-capture display gaps remain explicit without automatically requiring every old channel to refresh. Inquiry hints are deliberately bounded, not general intent understanding, and no blanket inquiry-closure claim is made. See [architecture](docs/architecture.md#financial-outcomes-and-inquiry-follow-up) and the [regression/adjudication notes](evals/README.md) for limitations and the preserved original holdout oracle.
+
+Verification for this follow-up: **282 Python tests**, **30 frontend tests**, and **12 mocked Chromium tests** pass, along with typechecks, lint, and the production build. The four counterexamples were also checked through a running mock HTTP server, with browser verification of the unanswered-delivery inquiry; **no new live inference was used**. Offline evaluations pass 20/20 development cases, 9/10 against the preserved H-series oracle versus 10/10 after the separate H09 adjudication, and 3/5 against the preserved final oracle versus 5/5 after its existing adjudication.
+
 ## Verification and current review — 2026-11-15
 
-The build-time verification of `16632d0` found no blocker in its tested scope. A later user-requested all-case and AI-engineering review found additional edge cases outside that suite, including premature inquiry closure and incomplete tool-JSON acceptance. These remain unfixed; see [current engineering review](docs/ENGINEERING_REVIEW.md). The final repository has **208 passing Python tests**, **30 frontend tests**, **12 mocked Chromium tests**, and passing typechecks/build. Final API baselines passed 20 development and 10 exposed regression cases; five additional cases scored 3/5 against their preserved original oracle and 5/5 after a separately documented independent adjudication. Final real-UI checks passed an unresolved-webhook case and a normal/recovered case. See [final acceptance record](docs/FINAL_VERIFICATION.md) for coverage and limitations—not an untouched-hold-out or production-readiness claim.
+The build-time verification of `16632d0` found no blocker in its tested scope. A later user-requested all-case and AI-engineering review found additional edge cases outside that suite, including premature inquiry closure and incomplete tool-JSON acceptance. The domain/inquiry findings have since been addressed by the follow-up above; separate protocol and operational findings remain open in the [engineering review](docs/ENGINEERING_REVIEW.md). The historical 2026-11-15 acceptance record reported **208 passing Python tests**, **30 frontend tests**, **12 mocked Chromium tests**, and passing typechecks/build. Final API baselines passed 20 development and 10 exposed regression cases; five additional cases scored 3/5 against their preserved original oracle and 5/5 after a separately documented independent adjudication. Final real-UI checks passed an unresolved-webhook case and a normal/recovered case. See [final acceptance record](docs/FINAL_VERIFICATION.md) for coverage and limitations—not an untouched-hold-out or production-readiness claim.
 
 The later UI follow-up fixed short-window form reachability, result-heading visibility, modal/background scrolling and keyboard access to technical JSON. A fresh verifier exercised 1280×600, 390×420 and 844×390 in the actual mock UI. Those UI fixes do not resolve the separate financial/agent-design findings above.
 

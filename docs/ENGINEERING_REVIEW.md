@@ -1,5 +1,7 @@
 # Independent engineering review
 
+> **Follow-up — 2026-11-16:** AR-01 and AR-02 are addressed by the resolution-boundary fixes and new [chronology](../tests/test_chronology_regressions.py) / [inquiry](../tests/test_question_resolution_regressions.py) regressions. The follow-up also fixes cross-channel status conflation and repeated-capture chronology. Financial state is kept separate from question-specific follow-up, and blanket inquiry-closure wording is removed. See [evaluation notes](../evals/README.md) for the preserved raw oracle and separately adjudicated channel-scoped H09 assertion. AR-03, AR-04, and AR-05 remain open; the dated review and evidence below are historical, not a claim that those issues were fixed.
+
 **Date:** 2026-11-15, post-build review requested by the user.
 
 **Reviewed candidate:** `0da82df9c5b061b07d70417d28543e0cf2c40e5f`.

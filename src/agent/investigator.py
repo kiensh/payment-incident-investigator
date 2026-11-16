@@ -95,7 +95,7 @@ async def investigate(payment: Payment, evidence: list[Evidence], question: str,
     started = perf_counter()
     if len(evidence) > 250:
         raise AgentFailure("Evidence exceeds this MVP's bounded per-payment limit.")
-    session = ToolSession(payment, evidence)
+    session = ToolSession(payment, evidence, question)
     if client is None:
         for name in ("get_payment_evidence", "get_attempts_and_events", "check_inconsistencies"):
             session.execute(name, {"payment_id": payment.id})

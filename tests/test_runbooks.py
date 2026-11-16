@@ -17,10 +17,13 @@ def test_content_hash_invalidates_parsed_runbook_cache(tmp_path: Path):
     original = (RUNBOOK_DIR / target.name).read_text()
     target.write_text(original)
     store = RunbookStore(tmp_path)
-    assert store.retrieve("payment-state")[0].version == "1.0.0"
-    target.write_text(original.replace("version: '1.0.0'", "version: '1.0.1'"))
-    assert store.retrieve("payment-state")[0].version == "1.0.1"
-    assert store.retrieve("payment-state")[0].version == "1.0.1"
+    initial_version = store.retrieve("payment-state")[0].version
+    updated_version = initial_version + "-cache-test"
+    changed = original.replace(f"version: '{initial_version}'", f"version: '{updated_version}'")
+    assert changed != original
+    target.write_text(changed)
+    assert store.retrieve("payment-state")[0].version == updated_version
+    assert store.retrieve("payment-state")[0].version == updated_version
     assert store.cache_hits >= 1
 
 

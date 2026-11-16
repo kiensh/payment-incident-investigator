@@ -37,7 +37,7 @@ TOOL_TYPES: dict[str, type[BaseModel]] = {
 TOOL_DESCRIPTIONS = {
     "get_payment_evidence": "Read the selected payment's original context, quality warnings and provider payment records. Original source status is not lifecycle proof.",
     "get_attempts_and_events": "Read selected payment attempts, authorizations, captures, events, webhook deliveries and application observations; never infer event order from arrival order.",
-    "check_inconsistencies": "Run authoritative deterministic rules on this investigation's complete evidence snapshot. Returns facts, gaps, conditional hypotheses and safe checks with citations. Always run before concluding.",
+    "check_inconsistencies": "Run authoritative deterministic rules on this investigation's complete evidence snapshot and submitted question. Returns financial facts and inquiry-specific gaps and safe checks with citations. Financial agreement alone does not close an inquiry. Always run before concluding.",
     "retrieve_runbooks": "Retrieve short versioned procedures by exact ID, category or keywords. Categories include payment, capture, authorization, webhook, duplicate, timestamp, missing, quality, support. No filesystem access.",
 }
 
@@ -55,9 +55,10 @@ class ToolInputError(ValueError):
 
 
 class ToolSession:
-    def __init__(self, payment: Payment, evidence: list[Evidence]) -> None:
+    def __init__(self, payment: Payment, evidence: list[Evidence], question: str | None = None) -> None:
         self.payment = payment
         self.evidence = evidence
+        self.question = question
         self.analysis: Analysis | None = None
         self.runbooks: dict[str, Runbook] = {}
         self.store = RunbookStore()
@@ -86,7 +87,7 @@ class ToolSession:
             result = {"records": [e.model_dump(mode="json") for e in self.evidence
                                   if e.kind != "Payment" and (kind == "all" or kind == e.kind)]}
         elif name == "check_inconsistencies":
-            self.analysis = analyze(self.payment, self.evidence)
+            self.analysis = analyze(self.payment, self.evidence, self.question)
             result = self.analysis.model_dump(mode="json")
         else:
             books = self.store.retrieve(values["query"], values["limit"])

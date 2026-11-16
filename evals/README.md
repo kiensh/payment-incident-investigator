@@ -18,12 +18,24 @@ The first frozen candidate `6de2098` scored7/10 on independently authored cases 
 
 A second fresh verifier authored five more cases under `final_holdout/prepare.py`. Their original oracle in `expected/final_holdout.json` remains unchanged and scores3/5. A later fresh integrated verifier independently adjudicated two disputed expectations (mandatory escalation for compatible partial/pending captures; a procedural rule ID mistaken for an asserted discrepancy). The separately labelled `expected/final_adjudicated.json` scores5/5 while retaining the financial distinctions, required checks and prohibitions on unsupported claims. These five cases are also exposed regressions, not untouched hold-outs.
 
-Reproduce the supported regression suite without inference:
+### Channel-resolution adjudication
+
+After the channel/inquiry-resolution fixes, the ten H-series mock regressions score **9/10 against the preserved raw oracle** and **10/10 against the separate `expected/holdout_resolution_adjudicated.json` oracle**. The original `expected/holdout.json` is unchanged byte-for-byte, with SHA256 `8b22e4ca4ce319f4d49ebcb3b27c75b227e8559cb68e3a901029f459e20fce68`. The adjudicated file includes all ten cases, this fingerprint, independent observation-based rationale, and explicit exposure metadata. It is not a new untouched holdout or evidence of live-model improvement.
+
+Only H09's global ban on `app_precedes_financial` changes. Its 09:00 `status-export-a` observation genuinely precedes the 09:05 capture, while the separate 09:10 checkout failure still establishes a discrepancy. The untimed `status-export-b` observation cannot erase that known comparison. The adjudicated oracle retains `captured`, `check_required`, the exact required discrepancy citations `h09_c1`/`h09_u3`, and the ban on aligned closure. The raw oracle intentionally reports `unexpected rule: app_precedes_financial`; regression tests preserve that result and verify the original fingerprint and the single-field adjudication. Report raw and adjudicated scores separately rather than silently replacing the raw result.
+
+H01's `no_escalation` expectation is unchanged: its historical checkout failure predates capture, and the later receipt and recovered delivery support the financial-count answer without proving that checkout refreshed. Development-oracle maintenance is similarly scoped: D10 (`pay_2bf475c8`) now requires the post-capture order-page discrepancy and independently successful receipt instead of a global latest-status tie; D16 (`pay_0f6392ab`) retains `no_escalation` and permits a scoped informational historical-display unknown. D16's later successful order page supports the financial answer, not recovery of every channel or fulfillment. No post-capture, tied, or untimed contrary observation is dismissed by this historical-observation distinction.
+
+Reproduce raw and adjudicated regression results without inference:
 
 ```sh
 uv run python -m evals.holdout.prepare --database artifacts/h-regression.sqlite
+# Expected nonzero exit: the frozen raw oracle retains the disputed H09 rule ban.
 uv run python -m evals.run --mode mock --database artifacts/h-regression.sqlite \
   --expected evals/expected/holdout.json --output artifacts/h-regression.json
+uv run python -m evals.run --mode mock --database artifacts/h-regression.sqlite \
+  --expected evals/expected/holdout_resolution_adjudicated.json \
+  --output artifacts/h-resolution-adjudicated.json
 uv run python -m evals.final_holdout.prepare --output artifacts/f-regression.sqlite
 uv run python -m evals.run --mode mock --database artifacts/f-regression.sqlite \
   --expected evals/expected/final_adjudicated.json --output artifacts/f-adjudicated.json

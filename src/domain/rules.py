@@ -1,6 +1,7 @@
 """Deterministic, evidence-scoped checks; no guessed root causes or financial actions."""
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
@@ -45,13 +46,36 @@ def _amount(item: Evidence) -> str:
     return f"{item.data['amount']} {currency}"
 
 
-def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
+def _asks_about_current_channel(question: str, channel: str) -> bool:
+    """Bounded display hints, not a claim to understand or resolve every inquiry."""
+    channel_name = re.escape(re.sub(r"[_-]+", " ", channel.casefold()))
+    for clause in re.split(r"[.!?;\n]", question.casefold()):
+        clause = re.sub(r"[_-]+", " ", clause)
+        mentions_view = re.search(rf"\b{channel_name}\b", clause) or re.search(r"\b(?:screens?|displays?)\b", clause)
+        historical = re.search(r"\b(?:earlier|previous(?:ly)?|old|historical|before)\b", clause)
+        current = re.search(r"\b(?:still|current(?:ly)?|now|recover(?:ed|y)?|refresh(?:ed)?)\b", clause)
+        if mentions_view and (current or not historical):
+            return True
+    return False
+
+
+def analyze(payment: Payment, evidence: list[Evidence], question: str | None = None) -> Analysis:
     """Inspect one immutable snapshot; only authoritative records determine state.
 
     `captured` means a successful capture is evidenced, not settled, refunded, or
     reconciled. `failed` requires an explicit complete provider view. Unknowns
     about original source quality alone do not trigger operational escalation.
+    Question hints add scoped checks; financial alignment never closes arbitrary inquiries.
     """
+    inquiry = payment.symptom if question is None else question
+    notification_inquiry = bool(re.search(
+        r"\b(?:web[ -]?hooks?|notifications?|callbacks?|deliver(?:y|ies|ed)|endpoints?)\b",
+        inquiry, re.IGNORECASE,
+    ))
+    processing_inquiry = notification_inquiry and bool(re.search(
+        r"\b(?:process(?:ed|ing|es)?|handl(?:e[ds]?|ers?|ing)|consum(?:e[ds]?|ers?|ing)|applied)\b",
+        inquiry, re.IGNORECASE,
+    ))
     ontology = load_ontology()
     missing = validate_evidence_graph(payment, evidence)
     result = Analysis(payment_id=payment.id, payment_state="unknown", disposition="no_escalation")
@@ -83,7 +107,8 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
         # Equivalent tied snapshots need no invented ordering; contradictory ones remain unresolved.
         fingerprints = {str(sorted(item.data.items())) for item in snapshots}
         if len(fingerprints) == 1:
-            snapshot = snapshots[0]
+            # An equivalent untimed copy must not discard established coverage time.
+            snapshot = next((item for item in snapshots if _time(item.occurred_at) is not None), snapshots[0])
         else:
             add("discrepancies", "provider_snapshot_conflict",
                 "The latest provider snapshot cannot be selected unambiguously; supplied snapshots disagree.", snapshots)
@@ -104,6 +129,7 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
 
     captures = _group(by_kind["Capture"], "capture_id")
     successes: list[Evidence] = []
+    successful_observations: list[Evidence] = []
     capture_conflicts: list[Evidence] = []
     for capture_id, records in captures.items():
         successful = [item for item in records if item.data["status"] == ontology["policies"]["successful_capture_status"]]
@@ -116,8 +142,10 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
                 f"Records for capture {capture_id} disagree on outcome or captured amount; this capture is excluded from confirmed totals.", records)
             result.disposition = "escalate"
         elif successful:
-            chosen = _latest(successful)[0]
+            # Count an identity once, but retain every observation for chronology.
+            chosen = successful[0]
             successes.append(chosen)
+            successful_observations.extend(successful)
             add("confirmed_facts", "capture_success",
                 f"Provider capture {capture_id} succeeded for {_amount(chosen)}. This establishes capture, not settlement or an absence of later refunds.", successful)
         elif failed:
@@ -129,8 +157,10 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
             check()
 
     active_auth: list[Evidence] = []
+    current_authorizations: list[Evidence] = []
     for authorization_id, records in _group(by_kind["Authorization"], "authorization_id").items():
         latest = _latest(records)
+        current_authorizations.extend(latest)
         statuses = {item.data["status"] for item in latest}
         amounts = {(Decimal(item.data["amount"]), item.data["currency"]) for item in latest}
         if len(amounts) > 1:
@@ -177,7 +207,22 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
             for item in current_attempts
         )
         complete = snapshot.data["capture_history_complete"]
-        if status in ontology["policies"]["terminal_provider_failure_statuses"] and complete:
+        financial_activity = current_attempts + current_authorizations + by_kind["Capture"] + by_kind["ProviderEvent"]
+        # Tied closed-state observations are compatible; tied ongoing activity is not ordered.
+        uncovered = [item for item in financial_activity
+                     if snapshot_time is None or (time := _time(item.occurred_at)) is None
+                     or time > snapshot_time
+                     or (time == snapshot_time
+                         and item.data.get("status") not in {"failed", "declined", "expired", "voided"}
+                         and item.data.get("event_type") not in {"payment_intent.canceled", "payment_intent.payment_failed"})]
+        terminal_statuses = set(ontology["policies"]["terminal_provider_failure_statuses"]) | {"requires_payment_method"}
+        if status in terminal_statuses and complete and uncovered:
+            add("unknowns", "provider_snapshot_coverage_gap",
+                "The provider snapshot cannot establish a current terminal failure: supplied financial activity is later, tied, or cannot be ordered against its coverage time.", [snapshot] + uncovered)
+            add("next_checks", "provider_snapshot_coverage_gap",
+                "Read a fresh provider snapshot and its covered attempt, authorization, capture, and event history before resolving the payment outcome.", [snapshot] + uncovered)
+            check()
+        elif status in ontology["policies"]["terminal_provider_failure_statuses"] and complete:
             result.payment_state = "failed"
             add("confirmed_facts", "provider_canceled",
                 "The provider snapshot is canceled and explicitly covers capture history with no successful capture supplied. This is an observed canceled payment, not proof about other payments.", [snapshot])
@@ -196,12 +241,13 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
         check()
 
     if snapshot is not None and successes and snapshot.data["provider_status"] in {"canceled", "requires_payment_method", "requires_capture"}:
-        capture_times = [_time(item.occurred_at) for item in successes]
-        latest_capture_time = max((value for value in capture_times if value is not None), default=None)
         snapshot_time = _time(snapshot.occurred_at)
-        if snapshot_time is None or latest_capture_time is None or snapshot_time >= latest_capture_time:
+        conflicting_captures = [item for item in successful_observations
+                                if snapshot_time is None or (time := _time(item.occurred_at)) is None
+                                or time <= snapshot_time]
+        if conflicting_captures:
             add("discrepancies", "provider_snapshot_conflict",
-                "Successful capture records and the supplied current provider status do not agree. Preserve the capture evidence and reconcile the provider snapshot rather than treating it as a reversal.", [snapshot] + successes)
+                "Successful capture records and the supplied current provider status do not agree. Preserve the capture evidence and reconcile the provider snapshot rather than treating it as a reversal.", [snapshot] + conflicting_captures)
             result.disposition = "escalate"
 
     if len(successes) > 1:
@@ -232,59 +278,69 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
             check()
 
     apps = by_kind["ApplicationStatusObservation"]
-    latest_apps = _latest(apps)
-    app_statuses = {item.data["status"] for item in latest_apps}
+    channels = {channel: _latest(records) for channel, records in _group(apps, "channel").items()}
+    latest_apps = [item for records in channels.values() for item in records]
     app_unresolved = False
     for item in apps:
         add("confirmed_facts", "app_observation",
             f"Application observation {item.data['observation_id']} reports {item.data['status']} on {item.data['channel']}.", [item])
-    if len(app_statuses) > 1:
-        add("unknowns", "app_order_unknown",
-            "Conflicting application statuses have equal, missing, or non-comparable timestamps; the latest status cannot be selected from arrival order or record IDs.", latest_apps)
-        check()
-        app_unresolved = True
-    if latest_apps:
-        expected_statuses: dict[str, set[str]] = {
-            "captured": {"succeeded"}, "failed": {"failed"},
-            "authorized": {"authorized", "pending", "processing"}, "unknown": set(),
-        }
-        expected_status = expected_statuses[result.payment_state]
-        for status, status_apps in _group(latest_apps, "status").items():
+    expected_statuses: dict[str, set[str]] = {
+        "captured": {"succeeded"}, "failed": {"failed"},
+        "authorized": {"authorized", "pending", "processing"}, "unknown": set(),
+    }
+    expected_status = expected_statuses[result.payment_state]
+    authoritative = successful_observations if successes else ([snapshot] if snapshot is not None else active_auth)
+    times = [_time(item.occurred_at) for item in authoritative]
+    known_times = [value for value in times if value is not None]
+    # A later copy cannot move the point by which capture was already evidenced.
+    reference_time = (min(known_times) if successes else max(known_times)) if known_times else None
+    reference_records = [item for item in authoritative if _time(item.occurred_at) == reference_time] if successes else authoritative
+    matching_apps = [item for item in latest_apps if item.data["status"] in expected_status]
+    matching_later_apps = [item for item in matching_apps if reference_time is not None
+                           and (time := _time(item.occurred_at)) is not None and time > reference_time]
+    for channel, channel_apps in channels.items():
+        if len({item.data["status"] for item in channel_apps}) > 1:
+            add("unknowns", "app_order_unknown",
+                f"Conflicting application statuses on {channel} have equal, missing, or non-comparable timestamps; that channel's latest status cannot be selected from arrival order or record IDs.", channel_apps)
+            check()
+            app_unresolved = True
+        for status, status_apps in _group(channel_apps, "status").items():
             if not expected_status or status in expected_status:
                 continue
-            authoritative = successes if successes else ([snapshot] if snapshot is not None else active_auth)
-            times = [_time(item.occurred_at) for item in authoritative]
-            reference_time = max((value for value in times if value is not None), default=None)
             app_times = [_time(item.occurred_at) for item in status_apps]
             later_apps = [item for item in status_apps if reference_time is not None
                           and (time := _time(item.occurred_at)) is not None and time > reference_time]
-            if later_apps and all(value is not None for value in times):
+            if later_apps and (successes or all(value is not None for value in times)):
                 add("discrepancies", "app_discrepancy",
-                    f"A later application observation reports {status} while provider evidence establishes {result.payment_state}. The display discrepancy is established; its cause is not.", later_apps + authoritative)
+                    f"A later application observation reports {status} on {channel} while provider evidence establishes {result.payment_state}. The display discrepancy is established; its cause is not.", later_apps + reference_records)
                 untimed = [item for item in status_apps if _time(item.occurred_at) is None]
                 if untimed:
                     add("unknowns", "app_order_unknown",
-                        "Additional application observations lack comparable timestamps; their ordering remains unknown and does not erase the separately evidenced later display discrepancy.", untimed)
-            elif reference_time is not None and all(time is not None and time < reference_time for time in app_times):
+                        f"Additional application observations on {channel} lack comparable timestamps; their ordering remains unknown and does not erase the separately evidenced later display discrepancy.", untimed)
+            elif reference_time is not None and all(value is not None for value in times) and all(time is not None and time < reference_time for time in app_times):
                 add("unknowns", "app_precedes_financial",
-                    "The differing application status predates the financial evidence. A current display discrepancy cannot be established without a newer application observation.", status_apps + authoritative)
+                    f"The differing application status on {channel} predates the financial evidence. That channel's current display cannot be established without a newer observation.", status_apps + authoritative)
+                if matching_later_apps and not _asks_about_current_channel(inquiry, channel):
+                    # A historical display gap need not block an evidenced financial answer.
+                    continue
             else:
                 add("unknowns", "app_order_unknown",
-                    "The differing application status cannot be ordered after the financial evidence because timestamps are tied, absent, or lack comparable timezones.", status_apps + authoritative)
+                    f"The differing application status on {channel} cannot be ordered after the financial evidence because timestamps are tied, absent, or lack comparable timezones.", status_apps + authoritative)
             app_unresolved = True
             check()
-    else:
+    if not latest_apps:
         add("unknowns", "app_observation",
             "No customer-facing application observation is supplied; the current display cannot be checked.", [])
         check()
         app_unresolved = True
     if app_unresolved:
         add("next_checks", "app_discrepancy",
-            "Read a fresh application-status observation and correlate application processing logs with the provider payment/event IDs; do not infer a root cause from the displayed status alone.", latest_apps)
+            "Read a fresh application-status observation for each unresolved channel and correlate application processing logs with the provider payment/event IDs; another channel's success does not prove recovery. Do not infer a root cause from the displayed status alone.", latest_apps)
 
     deliveries = by_kind["WebhookDelivery"]
+    deliveries_by_event = _group(deliveries, "event_id")
     failed_deliveries = [item for item in deliveries if item.data["status"] == "failed"]
-    for event_id, records in _group(deliveries, "event_id").items():
+    for event_id, records in deliveries_by_event.items():
         distinct_deliveries = _group(records, "delivery_id")
         outcomes = sorted({item.data["status"] for item in records})
         add("confirmed_facts", "delivery_observed",
@@ -305,6 +361,12 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
             add("next_checks", "notification_unresolved",
                 "Read webhook endpoint responses and subsequent delivery attempts for this event, then inspect event-processing logs. Do not resend notifications or change payment state from this investigator.", failed_for_event)
             check()
+        elif notification_inquiry and not any(item.data["status"] == "delivered" for item in records):
+            add("unknowns", "notification_unresolved",
+                f"The supplied delivery attempts for event {event_id} do not establish successful notification delivery. Financial capture does not answer this delivery inquiry.", records)
+            add("next_checks", "notification_unresolved",
+                "Read the current webhook endpoint response and delivery-attempt records for this event before answering the delivery inquiry; do not resend the notification.", records)
+            check()
     if failed_deliveries and app_unresolved:
         add("hypotheses", "notification_hypothesis",
             "If the application relies on these notifications, a failed delivery may have contributed to a stale display. Delivery evidence alone does not establish that causal link or a root cause.", failed_deliveries + latest_apps)
@@ -312,9 +374,23 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
             "Read webhook endpoint responses, subsequent delivery attempts, and application event-processing logs for the same event IDs to test the notification hypothesis.", failed_deliveries)
 
     events = by_kind["ProviderEvent"]
-    if events and not deliveries:
+    uncovered_events = [item for item in events if item.data["event_id"] not in deliveries_by_event]
+    if uncovered_events:
         add("unknowns", "missing_delivery_evidence",
-            "Provider events are supplied without webhook delivery records. Notification success or failure is unknown, not inferred from their absence.", events)
+            "Some provider events have no corresponding webhook delivery records. Notification success or failure for those events is unknown, not inferred from their absence.", uncovered_events)
+    if notification_inquiry and (uncovered_events or not events and not deliveries):
+        if not uncovered_events:
+            add("unknowns", "missing_delivery_evidence",
+                "No provider event or webhook delivery records are supplied to answer this notification inquiry. Payment evidence alone does not establish delivery.", [])
+        add("next_checks", "missing_delivery_evidence",
+            "Read the provider event and webhook delivery records, including endpoint responses, for each event without delivery evidence before answering the notification inquiry. Missing records do not mean delivery failed.", uncovered_events)
+        check()
+    if processing_inquiry:
+        add("unknowns", "notification_processing_unknown",
+            "These records do not establish whether the application processed the notification. A successful delivery response is not proof of downstream processing.", events + deliveries)
+        add("next_checks", "notification_processing_unknown",
+            "Read application handler or consumer logs correlated to the provider event IDs before answering the notification-processing inquiry.", events + deliveries)
+        check()
     event_representatives = [records[0] for records in _group(events, "event_id").values()]
     unordered: list[Evidence] = []
     reordered: list[Evidence] = []
@@ -353,8 +429,8 @@ def analyze(payment: Payment, evidence: list[Evidence]) -> Analysis:
             "Ask payment operations to read authoritative current provider records and reconcile conflicting object identities and amounts.", captures.get(next(iter(captures), ""), []) + snapshots)
     if result.disposition == "no_escalation":
         add("confirmed_facts", "aligned_observations",
-            "The supplied financial and latest application observations are sufficient and aligned for this symptom. No operational escalation is indicated by these records; this is not a guarantee about omitted systems or later activity.", successes + latest_apps + ([snapshot] if snapshot is not None else []))
+            "The supplied financial evidence and matching application observations support a consistent financial outcome without operational escalation. This does not establish recovery of every application channel, notification delivery, downstream processing, settlement, or resolution of every customer question.", successes + matching_apps + ([snapshot] if snapshot is not None else []))
         add("next_checks", "aligned_observations",
-            "Explain the evidenced outcome to support. No additional investigation is required for the supplied symptom unless new contradictory evidence appears.", successes + latest_apps + ([snapshot] if snapshot is not None else []))
+            "Explain the evidenced financial and application outcome to support. Review the customer's remaining question and any evidence gaps separately; do not treat financial alignment as proof that the inquiry is fully resolved.", successes + matching_apps + ([snapshot] if snapshot is not None else []))
     result.applied_rules.sort()
     return Analysis.model_validate(result.model_dump())

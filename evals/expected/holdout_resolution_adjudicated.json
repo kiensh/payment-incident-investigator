@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "label": "Separately adjudicated EXPOSED H-series channel-resolution regression oracle; original holdout.json preserved",
+  "original_oracle": "evals/expected/holdout.json",
+  "original_oracle_sha256": "8b22e4ca4ce319f4d49ebcb3b27c75b227e8559cb68e3a901029f459e20fce68",
+  "independence": "A separate verifier context adjudicated the disputed channel-resolution checks from the synthetic observations and original expectations before the coordinator reviewed those case details. Production output identified the mismatch but did not define correctness. These cases were already exposed to implementation; this is regression-oracle maintenance, not new untouched holdout evidence or independent human expert annotation.",
+  "adjudication": [
+    {
+      "case_id": "H09",
+      "payment_id": "pay_h09_7c9a",
+      "change": "Remove only app_precedes_financial from H09 forbidden_rules. All other case fields and all nine other cases remain identical to the original oracle.",
+      "basis": "The 09:00 failed status-export-a observation h09_u1 precedes the 09:05 capture h09_c1, the failed status-export-b observation h09_u2 has no timestamp, and the 09:10 failed checkout observation h09_u3 follows capture. A scoped pre-financial finding about status-export-a is true and does not erase the separately established checkout discrepancy. The global rule ban conflated these independent channels. Retain captured/check_required, the required failed-discrepancy claim citing h09_c1 and h09_u3, and the prohibition on aligned closure. Do not claim that all differing observations precede capture or infer an order for h09_u2.",
+      "references": ["evals/holdout/prepare.py:150-155", "evals/expected/holdout.json:100-107", "tests/test_independent_regressions.py"]
+    }
+  ],
+  "cases": [
+    {
+      "payment_id": "pay_h01_7c9a",
+      "payment_state": "captured",
+      "disposition": "no_escalation",
+      "required_claims": [
+        {"section": "confirmed_facts", "text_contains": "187.43", "evidence_ids": ["h01_c1b", "h01_c1c"]},
+        {"section": "confirmed_facts", "text_contains": "Repeated", "evidence_ids": ["h01_d1", "h01_d2", "h01_d3"]}
+      ],
+      "forbidden_rules": ["multiple_captures", "capture_amount_mismatch", "app_discrepancy"],
+      "semantic_expectation": "Four attempt identities, repeated observations of one capture identity and three deliveries do not multiply charges. One successful capture for 187.43 USD, eventual delivery success and a later successful receipt support closure. A historical failed screen/source status and source-currency warning do not override explicitly denominated lifecycle records. No settlement/refund-absence guarantee."
+    },
+    {
+      "payment_id": "pay_h02_7c9a",
+      "payment_state": "failed",
+      "disposition": "no_escalation",
+      "required_claims": [
+        {"section": "confirmed_facts", "text_contains": "failed", "evidence_ids": ["h02_a1", "h02_a2", "h02_p1"]}
+      ],
+      "forbidden_rules": ["capture_success", "app_discrepancy"],
+      "semantic_expectation": "Two failed attempts and declined authorizations precede a complete current requires_payment_method snapshot; no capture supplied in the explicitly covered history. Later failed display agrees. Explain observed failures without engineering escalation or claiming a hidden bank cause. The unrelated source Successful label is not lifecycle authority."
+    },
+    {
+      "payment_id": "pay_h03_7c9a",
+      "payment_state": "authorized",
+      "disposition": "check_required",
+      "required_claims": [
+        {"section": "unknowns", "text_contains": "capture", "evidence_ids": ["h03_z1", "h03_c1"]},
+        {"section": "discrepancies", "text_contains": "succeeded", "evidence_ids": ["h03_u1"]}
+      ],
+      "forbidden_rules": ["capture_success", "attempt_failure"],
+      "semantic_expectation": "Successful bank challenge/attempt and active 73.20 USD authorization do not establish capture; capture is still pending. The later paid screen is unsupported. Read current provider capture/authorization records, not trigger capture or retry payment."
+    },
+    {
+      "payment_id": "pay_h04_7c9a",
+      "payment_state": "captured",
+      "disposition": "check_required",
+      "required_claims": [
+        {"section": "confirmed_facts", "text_contains": "61.08", "evidence_ids": ["h04_c1"]},
+        {"section": "confirmed_facts", "text_contains": "order", "evidence_ids": ["h04_e1", "h04_e2"]},
+        {"section": "discrepancies", "text_contains": "failed", "evidence_ids": ["h04_c1", "h04_u1"]},
+        {"section": "hypotheses", "text_contains": "may", "evidence_ids": ["h04_d2", "h04_u1"]}
+      ],
+      "semantic_expectation": "Later capture succeeds for 61.08 USD despite an earlier failed attempt and a 504 on the success notification. Failure event occurs earlier but arrives later than success event. App failure after capture is a real display discrepancy; stale processing/notification failure are possible explanations only, not established cause. Read endpoint responses and app processing logs."
+    },
+    {
+      "payment_id": "pay_h05_7c9a",
+      "payment_state": "unknown",
+      "disposition": "check_required",
+      "required_claims": [
+        {"section": "unknowns", "text_contains": "not supplied", "evidence_ids": ["h05_e1"]},
+        {"section": "unknowns", "text_contains": "Missing evidence", "evidence_ids": ["h05_p1", "h05_e1"]}
+      ],
+      "forbidden_rules": ["capture_success", "attempt_failure", "aligned_observations"],
+      "semantic_expectation": "Within this demo ontology only a successful capture record establishes captured funds. The missing Capture subject of a charge.captured event, incomplete provider snapshot and 202 webhook acknowledgement do not supply that record. Do not infer capture or failure; read the referenced capture and coverage."
+    },
+    {
+      "payment_id": "pay_h06_7c9a",
+      "payment_state": "captured",
+      "disposition": "escalate",
+      "required_claims": [
+        {"section": "discrepancies", "text_contains": "2 distinct", "evidence_ids": ["h06_c1", "h06_c2"]},
+        {"section": "next_checks", "text_contains": "partial", "evidence_ids": ["h06_c1", "h06_c2"]}
+      ],
+      "forbidden_rules": ["capture_amount_mismatch", "provider_snapshot_conflict"],
+      "semantic_expectation": "Two distinct successful capture identities, 8.20 and 12.15 USD, sum exactly to 20.35 USD. They are not one notification repeated and not automatically an unintended duplicate charge. The older requires_capture snapshot predates both captures and is superseded by succeeded. Route for intended partial-capture/ledger reconciliation, without refund/retry advice."
+    },
+    {
+      "payment_id": "pay_h07_7c9a",
+      "payment_state": "unknown",
+      "disposition": "escalate",
+      "required_claims": [
+        {"section": "discrepancies", "text_contains": "disagree", "evidence_ids": ["h07_c1", "h07_c2"]}
+      ],
+      "forbidden_rules": ["capture_success", "multiple_captures", "aligned_observations"],
+      "semantic_expectation": "The same capture ID has simultaneous successful records in different currencies. Cannot choose one, add the amounts, count them as two captures or infer conversion. Exclude from confirmed monetary totals and reconcile with provider operations despite succeeded app/snapshot."
+    },
+    {
+      "payment_id": "pay_h08_7c9a",
+      "payment_state": "authorized",
+      "disposition": "escalate",
+      "required_claims": [
+        {"section": "unknowns", "text_contains": "amount", "evidence_ids": ["h08_z1", "h08_z2"]}
+      ],
+      "forbidden_rules": ["capture_success", "aligned_observations"],
+      "semantic_expectation": "Both current authorization records establish an active hold but disagree on its amount (90 versus 120 USD) at exactly the same instant. Neither arrival, ID order nor the payment's expected amount selects the actual authorization amount. State amount uncertainty with both records and reconcile contradictory authoritative evidence; do not present either exact held amount as settled fact."
+    },
+    {
+      "payment_id": "pay_h09_7c9a",
+      "payment_state": "captured",
+      "disposition": "check_required",
+      "required_claims": [
+        {"section": "discrepancies", "text_contains": "failed", "evidence_ids": ["h09_c1", "h09_u3"]}
+      ],
+      "forbidden_rules": ["aligned_observations"],
+      "semantic_expectation": "The 09:10 failed checkout observation definitively postdates the 09:05 capture. Another failed observation at 09:00 and one untimed failed observation do not erase that comparison; all screens report the same status. A post-capture discrepancy is established without inventing the untimed observation's order. Do not claim all differing app observations predate capture."
+    },
+    {
+      "payment_id": "pay_h10_7c9a",
+      "payment_state": "captured",
+      "disposition": "check_required",
+      "required_claims": [
+        {"section": "confirmed_facts", "text_contains": "56.02", "evidence_ids": ["h10_c1"]},
+        {"section": "next_checks", "text_contains": "webhook", "evidence_ids": ["h10_d1", "h10_d2", "h10_d3"]}
+      ],
+      "forbidden_rules": ["app_discrepancy", "aligned_observations"],
+      "semantic_expectation": "Capture and receipt agree, so do not manufacture financial failure or duplicate charge. But the actual reported symptom is a still-failing webhook: three separate 500/503/504 outcomes with no delivery success. Financial alignment does not resolve this notification inquiry. Recommend read-only endpoint/response/subsequent-delivery checks and leave delivery cause unknown; no resend or configuration action."
+    }
+  ]
+}

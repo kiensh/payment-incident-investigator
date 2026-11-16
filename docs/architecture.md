@@ -25,6 +25,12 @@ The model requests evidence/checks, chooses relevant runbooks, and chooses up to
 
 This is deliberately less flexible than unrestricted narrative generation. The rules-only baseline can match the agent on authoritative facts; agent value must be measured in relevance and procedure selection, not assumed from accuracy on shared deterministic outputs. Questions beyond this ontology have limited answers. This trade-off is explainable in the technical interview.
 
+## Financial outcomes and inquiry follow-up
+
+Financial state and capture totals depend on evidence, not the wording of a question. The submitted API question is pinned to the tool session and supplied to the deterministic checks in both live and mock modes. Missing notification coverage can therefore require a read-only follow-up while the financial state remains `captured`; successful delivery still does not prove downstream processing. Delivery coverage is checked per event, not merely by the existence of any delivery record.
+
+The inquiry checks use bounded textual hints for notifications, delivery/processing, and named-channel or display questions. They are not a general natural-language intent parser and do not certify that an arbitrary question has been answered. `no_escalation` is scoped to the evidenced outcome, never a blanket instruction to close every customer inquiry. The model still only selects validated findings and cannot override these checks.
+
 ## Data and provenance
 
 The committed original Kaggle archive contains 5,000 synthetic rows. Offline preparation validates records, selects card transactions, preserves original values, and reports ambiguous merchant IDs, missing currency and unspecified source timezone. Generated lifecycle records are separately labelled synthetic and governed by explicit demo assumptions. They are not reconstructed hidden histories or real Stripe test-mode transactions.
@@ -36,6 +42,10 @@ Scenario specifications and expected answers live under `evals`, outside the evi
 Each investigation loads payment and evidence in one SQLite read transaction. Only that investigation retains its snapshot. A later request obtains new evidence; the freshness integration test changes a capture record and verifies the next answer changes. There is no answer cache and no cross-investigation evidence cache.
 
 Business-event timestamps and arrival/observation timestamps remain separate. Equal, missing, timezone-ambiguous or otherwise incomparable timestamps do not establish chronology. A complete capture record can establish observed capture without proving settlement, absence of later refunds or a technical root cause. A failed attempt plus missing captures cannot establish overall failure without appropriate coverage evidence. The response describes the scope of supplied observations, not the state of a real provider right now.
+
+A terminal provider snapshot must cover the supplied financial activity before it establishes current failure. Newer or unordered ongoing activity keeps the outcome open; compatible tied closed-state observations do not require an invented order. Capture IDs are counted once for amounts, but all successful observations remain available for chronology, so a later copy cannot hide capture evidence preceding a contradictory snapshot or failed display.
+
+Application observations are compared within each channel. A newer receipt or back-office success cannot erase a checkout failure after capture. Strictly historical pre-financial errors remain explicit, but need not block a scoped financial answer supported by a later matching view when the question does not ask whether the old channel recovered. This is not a claim that the old channel refreshed.
 
 ## Runbooks, caching and observability
 
