@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_MODEL = "claude-sonnet-5.5"
 
 
 @dataclass(frozen=True)
@@ -16,7 +17,7 @@ class Settings:
     mode: Literal["mock", "live"] = "mock"
     database: Path = ROOT / "data/prepared/incidents.sqlite"
     model_base_url: str = "http://localhost:8765/cc"
-    model_name: str = ""
+    model_name: str = DEFAULT_MODEL
     model_api_key: str = field(default="", repr=False)
     budget_path: Path = ROOT / "artifacts/bridge-budget.sqlite"
     budget_scope: Literal["persistent", "session"] = "persistent"
@@ -60,7 +61,7 @@ class Settings:
             mode="live" if mode == "live" else "mock",
             database=Path(os.getenv("INVESTIGATOR_DB", str(ROOT / "data/prepared/incidents.sqlite"))),
             model_base_url=os.getenv("ANTHROPIC_BASE_URL", "http://localhost:8765/cc"),
-            model_name=os.getenv("ANTHROPIC_MODEL", ""),
+            model_name=os.getenv("ANTHROPIC_MODEL", DEFAULT_MODEL),
             model_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
             budget_path=Path(os.getenv("INVESTIGATOR_BUDGET_PATH", str(ROOT / "artifacts/bridge-budget.sqlite"))),
             budget_scope="session" if scope == "session" else "persistent",

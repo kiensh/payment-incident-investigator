@@ -42,9 +42,10 @@ def test_external_provider_and_embedded_credentials_rejected(url):
         Settings(model_base_url=url)
 
 
-def test_live_requires_discovered_model_and_secret_is_not_repr():
+def test_live_defaults_to_sonnet_but_rejects_empty_model_and_hides_secrets():
+    assert Settings(mode="live").model_name == "claude-sonnet-5.5"
     with pytest.raises(ValueError, match="ANTHROPIC_MODEL"):
-        Settings(mode="live")
+        Settings(mode="live", model_name="")
     assert "credential-test-value" not in repr(Settings(model_api_key="credential-test-value"))
     with pytest.raises(ValueError):
         Settings(request_limit=151)
@@ -60,6 +61,25 @@ def config_env(monkeypatch, tmp_path):
                  "INVESTIGATOR_TIMEOUT_SECONDS"):
         monkeypatch.delenv(name, raising=False)
     return monkeypatch
+
+
+@pytest.mark.parametrize("model,expected", [
+    (None, "claude-sonnet-5.5"),
+    ("claude-opus-5.5", "claude-opus-5.5"),
+])
+def test_live_environment_defaults_to_sonnet_and_allows_opus(config_env, model, expected):
+    config_env.setenv("INVESTIGATOR_MODE", "live")
+    if model is not None:
+        config_env.setenv("ANTHROPIC_MODEL", model)
+    assert Settings.from_env().model_name == expected
+
+
+@pytest.mark.parametrize("model", ["", "   "])
+def test_live_environment_rejects_explicitly_blank_model(config_env, model):
+    config_env.setenv("INVESTIGATOR_MODE", "live")
+    config_env.setenv("ANTHROPIC_MODEL", model)
+    with pytest.raises(ValueError, match="ANTHROPIC_MODEL"):
+        Settings.from_env()
 
 
 def test_standard_model_and_application_environment_variables(config_env, tmp_path):
@@ -112,7 +132,8 @@ def test_renamed_settings_reuse_existing_default_request_ledger(config_env, tmp_
     settings = Settings.from_env()
     assert settings.mode == "mock"
     assert settings.model_base_url == "http://localhost:8765/cc"
-    assert settings.model_name == settings.model_api_key == ""
+    assert settings.model_name == "claude-sonnet-5.5"
+    assert settings.model_api_key == ""
     assert settings.request_limit == 150
     assert settings.request_timeout == 60
     assert settings.budget_path == path

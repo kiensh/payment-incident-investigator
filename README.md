@@ -16,7 +16,7 @@ https://github.com/user-attachments/assets/17ed9e96-74dd-4f1e-920e-a0fc726fcff3
 
 **[Open the video demo](https://github.com/user-attachments/assets/17ed9e96-74dd-4f1e-920e-a0fc726fcff3)** · 1 minute 21 seconds · WebM · 2.2 MB · silent with on-screen explanations.
 
-A real live-model walkthrough using synthetic evidence: select a reported symptom, investigate, inspect a source citation, and review the runbook and execution trace. Recording-only callouts point to the exact buttons and fields being discussed. No real customer data or payment actions are involved.
+A real live-model walkthrough using synthetic evidence: select a reported symptom, investigate, inspect a source citation, and review the runbook and execution trace. Recording-only callouts point to the exact buttons and fields being discussed. No real customer data or payment actions are involved. The recording uses Opus 5.5; the app now defaults to Sonnet 5.5.
 
 If the embedded player is unavailable in your browser, [open or download the WebM directly](https://raw.githubusercontent.com/kiensh/payment-incident-investigator/main/docs/assets/demo.webm).
 
@@ -62,13 +62,13 @@ For example, the existing local Copilot bridge uses `http://localhost:8765/cc`, 
 curl --fail --silent http://localhost:8765/cc/v1/models
 ```
 
-This installed endpoint advertises **`claude-opus-5.5`** (the dot is intentional). Use the exact discovered ID; it ignores client auth, so an empty `ANTHROPIC_API_KEY` selects the **public sentinel** `copilot-bridge`, not a secret. For **single-worker local development**, explicitly opt into a capped session:
+This installed endpoint advertises **`claude-sonnet-5.5`** (the dot is intentional), which is the app's default when `ANTHROPIC_MODEL` is omitted. Set `ANTHROPIC_MODEL` to another exact catalog ID to override it, for example `claude-opus-5.5` for Opus. An explicitly empty model is rejected in live mode. This endpoint ignores client auth, so an empty `ANTHROPIC_API_KEY` selects the **public sentinel** `copilot-bridge`, not a secret. For **single-worker local development**, explicitly opt into a capped session:
 
 ```sh
 env -u ANTHROPIC_CUSTOM_HEADERS INVESTIGATOR_MODE=live \
   INVESTIGATOR_BUDGET_SCOPE=session INVESTIGATOR_REQUEST_LIMIT=150 \
   ANTHROPIC_BASE_URL=http://localhost:8765/cc ANTHROPIC_API_KEY= \
-  ANTHROPIC_MODEL=claude-opus-5.5 \
+  ANTHROPIC_MODEL=claude-sonnet-5.5 \
   uv run --frozen python -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 ```
 
@@ -135,7 +135,7 @@ uv run python -m evals.run --mode mock --output artifacts/eval-dev-mock.json
 # Live development evaluation (explicit capped session; audit history preserved)
 env -u ANTHROPIC_CUSTOM_HEADERS INVESTIGATOR_BUDGET_SCOPE=session \
   INVESTIGATOR_REQUEST_LIMIT=150 ANTHROPIC_BASE_URL=http://localhost:8765/cc \
-  ANTHROPIC_API_KEY= ANTHROPIC_MODEL=claude-opus-5.5 \
+  ANTHROPIC_API_KEY= ANTHROPIC_MODEL=claude-sonnet-5.5 \
   uv run --frozen python -m evals.run --mode live --output artifacts/eval-dev-live.json
 ```
 
