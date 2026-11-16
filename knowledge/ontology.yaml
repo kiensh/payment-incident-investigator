@@ -1,4 +1,4 @@
-version: '1.2.0'
+version: '1.2.1'
 provider_model: stripe-payment-intent-inspired-demo
 scope: Read-only evidence interpretation; not a live provider connector or settlement ledger.
 concepts:
@@ -53,7 +53,8 @@ rules:
   attempt_observed: Attempt outcomes apply to attempts, not a count of charges.
   attempt_failure: Explicit current provider failure plus failed attempts can establish an observed failed payment attempt.
   provider_canceled: A complete canceled provider snapshot establishes failed payment state only when supplied financial activity is covered by its chronology.
-  provider_snapshot_conflict: Current provider snapshots are ambiguous or disagree with capture evidence.
+  provider_snapshot_conflict: Provider snapshots disagree with each other or with capture evidence that is provably earlier.
+  provider_snapshot_order_unknown: Missing, naive, or tied timestamps do not prove a provider-snapshot/capture contradiction.
   provider_snapshot_coverage_gap: Newer or unordered financial activity prevents an older provider snapshot from establishing current terminal failure.
   missing_financial_evidence: Missing capture or terminal-failure evidence leaves payment state unknown.
   multiple_captures: Multiple distinct successful capture IDs warrant reconciliation, not an automatic duplicate-charge diagnosis.
@@ -61,7 +62,8 @@ rules:
   currency_unavailable: Missing or incomparable currencies prevent monetary reconciliation.
   app_observation: Application status is observed independently per channel and separately from provider financial state.
   app_discrepancy: A later application observation disagrees with established financial evidence; another channel's success is not recovery.
-  app_precedes_financial: An earlier application status cannot establish a current discrepancy.
+  app_precedes_financial: An application status before the supplied financial comparison point cannot establish a current discrepancy.
+  app_completion_unconfirmed: An intermediate application status is not a proven discrepancy without evidence that the full expected amount was already captured.
   app_order_unknown: Missing, naive, or tied timestamps cannot establish the latest conflicting application status.
   delivery_observed: Notification delivery outcomes do not change financial state.
   duplicate_delivery: Repeated delivery of one event does not create another capture.

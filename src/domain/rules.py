@@ -46,12 +46,34 @@ def _amount(item: Evidence) -> str:
     return f"{item.data['amount']} {currency}"
 
 
-def _asks_about_current_channel(question: str, channel: str) -> bool:
-    """Bounded display hints, not a claim to understand or resolve every inquiry."""
-    channel_name = re.escape(re.sub(r"[_-]+", " ", channel.casefold()))
+def _capture_coverage_before(records: list[Evidence], snapshot: Evidence | None,
+                             at: datetime | None) -> list[Evidence]:
+    """Proof that distinct known successes covered the supplied amount before an observation."""
+    if snapshot is None or at is None or snapshot.data["currency"] is None:
+        return []
+    total = Decimal(0)
+    refs: list[Evidence] = []
+    for observations in _group(records, "capture_id").values():
+        prior = [item for item in observations if item.data["currency"] == snapshot.data["currency"]
+                 and (time := _time(item.occurred_at)) is not None and time < at]
+        if prior:
+            total += Decimal(prior[0].data["amount"])
+            refs.extend(prior)
+    return refs + [snapshot] if total >= Decimal(snapshot.data["amount"]) else []
+
+
+def _asks_about_current_channel(question: str, channel: str, available_channels: list[str]) -> bool:
+    """Explicit channel names outrank generic display hints within each clause."""
+    def normalized(value: str) -> str:
+        return re.sub(r"[\s_-]+", " ", value.casefold()).strip()
+
+    channel_name = normalized(channel)
+    channel_names = {normalized(name) for name in available_channels} - {""}
     for clause in re.split(r"[.!?;\n]", question.casefold()):
-        clause = re.sub(r"[_-]+", " ", clause)
-        mentions_view = re.search(rf"\b{channel_name}\b", clause) or re.search(r"\b(?:screens?|displays?)\b", clause)
+        clause = normalized(clause)
+        selected = {name for name in channel_names
+                    if re.search(rf"(?<!\w){re.escape(name)}(?!\w)", clause)}
+        mentions_view = channel_name in selected if selected else bool(re.search(r"\b(?:screens?|displays?)\b", clause))
         historical = re.search(r"\b(?:earlier|previous(?:ly)?|old|historical|before)\b", clause)
         current = re.search(r"\b(?:still|current(?:ly)?|now|recover(?:ed|y)?|refresh(?:ed)?)\b", clause)
         if mentions_view and (current or not historical):
@@ -243,12 +265,29 @@ def analyze(payment: Payment, evidence: list[Evidence], question: str | None = N
     if snapshot is not None and successes and snapshot.data["provider_status"] in {"canceled", "requires_payment_method", "requires_capture"}:
         snapshot_time = _time(snapshot.occurred_at)
         conflicting_captures = [item for item in successful_observations
-                                if snapshot_time is None or (time := _time(item.occurred_at)) is None
-                                or time <= snapshot_time]
+                                if snapshot_time is not None and (time := _time(item.occurred_at)) is not None
+                                and time < snapshot_time]
+        if snapshot.data["provider_status"] == "requires_capture":
+            # Requiring another capture is compatible with only a partial amount captured so far.
+            prior_ids = {item.data["capture_id"] for item in conflicting_captures}
+            prior = [item for item in successes if item.data["capture_id"] in prior_ids]
+            currency = snapshot.data["currency"]
+            if (currency is None or any(item.data["currency"] != currency for item in prior)
+                    or sum((Decimal(item.data["amount"]) for item in prior), Decimal(0)) < Decimal(snapshot.data["amount"])):
+                conflicting_captures = []
         if conflicting_captures:
             add("discrepancies", "provider_snapshot_conflict",
                 "Successful capture records and the supplied current provider status do not agree. Preserve the capture evidence and reconcile the provider snapshot rather than treating it as a reversal.", [snapshot] + conflicting_captures)
             result.disposition = "escalate"
+        else:
+            unordered_captures = [item for item in successful_observations
+                                  if snapshot_time is None or _time(item.occurred_at) in (None, snapshot_time)]
+            if unordered_captures:
+                add("unknowns", "provider_snapshot_order_unknown",
+                    "The provider snapshot and some capture observations cannot be ordered. Missing timing does not establish a contradiction or reverse the recorded capture.", [snapshot] + unordered_captures)
+                add("next_checks", "provider_snapshot_order_unknown",
+                    "Read comparable provider snapshot and capture timestamps before deciding whether their statuses conflict.", [snapshot] + unordered_captures)
+                check()
 
     if len(successes) > 1:
         add("discrepancies", "multiple_captures",
@@ -275,6 +314,8 @@ def analyze(payment: Payment, evidence: list[Evidence], question: str | None = N
         else:
             add("unknowns", "currency_unavailable",
                 "Provider expected and captured amounts cannot be reconciled because currencies are missing or differ; no conversion or currency was inferred.", [snapshot] + successes)
+            add("next_checks", "currency_unavailable",
+                "Read the provider's expected amount and capture currencies before deciding whether the expected amount has been captured; do not infer a conversion.", [snapshot] + successes)
             check()
 
     apps = by_kind["ApplicationStatusObservation"]
@@ -292,7 +333,7 @@ def analyze(payment: Payment, evidence: list[Evidence], question: str | None = N
     authoritative = successful_observations if successes else ([snapshot] if snapshot is not None else active_auth)
     times = [_time(item.occurred_at) for item in authoritative]
     known_times = [value for value in times if value is not None]
-    # A later copy cannot move the point by which capture was already evidenced.
+    # Captured funds can contradict a failed display without proving whole-payment completion.
     reference_time = (min(known_times) if successes else max(known_times)) if known_times else None
     reference_records = [item for item in authoritative if _time(item.occurred_at) == reference_time] if successes else authoritative
     matching_apps = [item for item in latest_apps if item.data["status"] in expected_status]
@@ -310,17 +351,36 @@ def analyze(payment: Payment, evidence: list[Evidence], question: str | None = N
             app_times = [_time(item.occurred_at) for item in status_apps]
             later_apps = [item for item in status_apps if reference_time is not None
                           and (time := _time(item.occurred_at)) is not None and time > reference_time]
+            earlier_apps = (reference_time is not None and all(value is not None for value in times)
+                            and all(time is not None and time < reference_time for time in app_times))
+            comparison_records = reference_records
+            if successes and status in {"pending", "processing", "authorized", "requires_action"}:
+                coverage = [(item, _capture_coverage_before(successful_observations, snapshot, _time(item.occurred_at)))
+                            for item in status_apps]
+                later_apps = [item for item, refs in coverage if refs]
+                comparison_records = [record for _, refs in coverage for record in refs]
+                unconfirmed = [item for item, refs in coverage if not refs]
+                if unconfirmed:
+                    completion_refs = unconfirmed + authoritative + ([snapshot] if snapshot is not None else [])
+                    add("unknowns", "app_completion_unconfirmed",
+                        f"The {status} application observation on {channel} is not proved to follow capture of the full supplied expected amount. A recorded capture may be partial; it is not by itself whole-payment completion.", completion_refs)
+                    if not (earlier_apps and matching_later_apps and not _asks_about_current_channel(inquiry, channel, list(channels))):
+                        add("next_checks", "app_completion_unconfirmed",
+                            f"Read provider amount coverage and the capture timeline, then a fresh {channel} observation, before treating an intermediate application status as a discrepancy.", completion_refs)
+                        check()
+                if not later_apps:
+                    continue
             if later_apps and (successes or all(value is not None for value in times)):
                 add("discrepancies", "app_discrepancy",
-                    f"A later application observation reports {status} on {channel} while provider evidence establishes {result.payment_state}. The display discrepancy is established; its cause is not.", later_apps + reference_records)
+                    f"A later application observation reports {status} on {channel} while provider evidence establishes {result.payment_state}. The display discrepancy is established; its cause is not.", later_apps + comparison_records)
                 untimed = [item for item in status_apps if _time(item.occurred_at) is None]
                 if untimed:
                     add("unknowns", "app_order_unknown",
                         f"Additional application observations on {channel} lack comparable timestamps; their ordering remains unknown and does not erase the separately evidenced later display discrepancy.", untimed)
-            elif reference_time is not None and all(value is not None for value in times) and all(time is not None and time < reference_time for time in app_times):
+            elif earlier_apps:
                 add("unknowns", "app_precedes_financial",
                     f"The differing application status on {channel} predates the financial evidence. That channel's current display cannot be established without a newer observation.", status_apps + authoritative)
-                if matching_later_apps and not _asks_about_current_channel(inquiry, channel):
+                if matching_later_apps and not _asks_about_current_channel(inquiry, channel, list(channels)):
                     # A historical display gap need not block an evidenced financial answer.
                     continue
             else:

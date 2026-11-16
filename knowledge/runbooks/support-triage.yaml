@@ -1,5 +1,5 @@
 id: support-triage
-version: '1.1.0'
+version: '1.1.1'
 title: Close or route a support inquiry
 categories: [support, triage, check, escalation, normal]
 applicability: A support teammate needs a bounded explanation and the next safe check for one payment ID.
@@ -11,6 +11,7 @@ steps:
   - Answer whether evidence supports capture, authorization only, failure, or uncertainty.
   - Separate an evidenced financial outcome from resolution of the customer's question; verify delivery or current-channel questions against their own records.
   - Historical pre-financial display gaps need not block an evidenced financial answer, but another channel's newer success does not erase a post-financial failure.
+  - When a question explicitly names a channel, generic words such as screen or display do not request checks of every other channel.
   - For a discrepancy, state what support can check read-only and which team owns the missing information.
   - Keep any financial action outside this application and under the customer's existing approval controls.
 supported_conclusions:

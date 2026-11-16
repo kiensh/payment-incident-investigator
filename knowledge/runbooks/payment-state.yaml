@@ -1,5 +1,5 @@
 id: payment-state
-version: '1.1.0'
+version: '1.1.1'
 title: Establish payment state
 categories: [payment, capture, authorization, failed, status]
 applicability: Card-payment status questions in this synthetic Stripe PaymentIntent-like model; not a settlement or refund assessment.
@@ -11,6 +11,9 @@ steps:
   - Separate an attempt from an authorization and an authorization from a capture.
   - Count unique capture identities, not webhook deliveries or attempt rows; retain every capture observation for chronological comparisons.
   - Treat a successful capture record as captured funds within this observation window, not bank settlement.
+  - A capture may be partial; an intermediate application status is not a proven discrepancy until full expected-amount coverage and its timing are established.
+  - For each application observation, count distinct successful captures already evidenced before it; later pending or excess captures do not retract earlier amount coverage.
+  - Missing or tied timestamps justify uncertainty, not a proven provider contradiction. A requires_capture snapshot may still be compatible with a partial amount captured so far.
   - Use explicit evidence completeness before concluding there was no capture; absent evidence alone means unknown.
   - Check the provider snapshot's coverage time against newer or unordered financial activity before treating a terminal snapshot as the current outcome.
   - Compare application status per channel with the provider evidence; another channel's newer success does not prove a failed view recovered.
