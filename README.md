@@ -4,6 +4,10 @@ Repository: [kiensh/payment-incident-investigator](https://github.com/kiensh/pay
 
 A read-only, evidence-grounded support workspace for a payment that looks different across systems. Built as an interview-ready, production-minded MVP — **not a production payment service**.
 
+## Who it helps
+
+Built for support agents at **HarborBasket**, a **fictional marketplace**, who need to answer customer questions when checkout screens, payment records, and notifications disagree.
+
 Ask: “The customer saw payment failed, but another system says it completed. What happened, what remains uncertain, and what should support check next?”
 
 The workspace separates **facts, discrepancies, hypotheses, unknowns and safe checks**, with inspectable record citations, quality warnings, runbooks and actual tool traces. One bounded agent consults evidence and procedures; deterministic rules own financial facts. No refunds, charge retries or financial-write capabilities exist.
@@ -19,27 +23,6 @@ https://github.com/user-attachments/assets/17ed9e96-74dd-4f1e-920e-a0fc726fcff3
 A real live-model walkthrough using synthetic evidence: select a reported symptom, investigate, inspect a source citation, and review the runbook and execution trace. Recording-only callouts point to the exact buttons and fields being discussed. No real customer data or payment actions are involved. The recording uses Opus 5.5; the app now defaults to Sonnet 5.5.
 
 If the embedded player is unavailable in your browser, [open or download the WebM directly](https://raw.githubusercontent.com/kiensh/payment-incident-investigator/main/docs/assets/demo.webm).
-
-## Resolution-boundary follow-up — 2026-11-16
-
-Establishing a financial state is not the same as resolving every customer inquiry. The follow-up fixes four reproduced counterexamples:
-
-- A complete terminal snapshot cannot cover newer or unordered ongoing financial activity.
-- Notification questions retain missing-delivery/processing follow-up without changing the evidenced capture state.
-- Application status is evaluated per channel; another channel's newer success does not erase a post-capture failure.
-- Capture IDs are counted once for amounts, while earlier observations remain available for chronology and contradictions.
-
-Normal scoped financial answers still avoid unnecessary escalation. Historical pre-capture display gaps remain explicit without automatically requiring every old channel to refresh. Inquiry hints are deliberately bounded, not general intent understanding, and no blanket inquiry-closure claim is made. See [architecture](docs/architecture.md#financial-outcomes-and-inquiry-follow-up) and the [regression/adjudication notes](evals/README.md) for limitations and the preserved original holdout oracle.
-
-Verification for this follow-up: **282 Python tests**, **30 frontend tests**, and **12 mocked Chromium tests** pass, along with typechecks, lint, and the production build. The four counterexamples were also checked through a running mock HTTP server, with browser verification of the unanswered-delivery inquiry; **no new live inference was used**. Offline evaluations pass 20/20 development cases, 9/10 against the preserved H-series oracle versus 10/10 after the separate H09 adjudication, and 3/5 against the preserved final oracle versus 5/5 after its existing adjudication.
-
-## Verification and current review — 2026-11-15
-
-The build-time verification of `16632d0` found no blocker in its tested scope. A later user-requested all-case and AI-engineering review found additional edge cases outside that suite, including premature inquiry closure and incomplete tool-JSON acceptance. The domain/inquiry findings have since been addressed by the follow-up above; separate protocol and operational findings remain open in the [engineering review](docs/ENGINEERING_REVIEW.md). The historical 2026-11-15 acceptance record reported **208 passing Python tests**, **30 frontend tests**, **12 mocked Chromium tests**, and passing typechecks/build. Final API baselines passed 20 development and 10 exposed regression cases; five additional cases scored 3/5 against their preserved original oracle and 5/5 after a separately documented independent adjudication. Final real-UI checks passed an unresolved-webhook case and a normal/recovered case. See [final acceptance record](docs/FINAL_VERIFICATION.md) for coverage and limitations—not an untouched-hold-out or production-readiness claim.
-
-The later UI follow-up fixed short-window form reachability, result-heading visibility, modal/background scrolling and keyboard access to technical JSON. A fresh verifier exercised 1280×600, 390×420 and 844×390 in the actual mock UI. Those UI fixes do not resolve the separate financial/agent-design findings above.
-
-**Demo request budget:** the original 150-request **persistent** allowance is exhausted. For local testing, explicitly opt into `INVESTIGATOR_BUDGET_SCOPE=session` to get a fresh capped allowance per server process without deleting audit history; see [live mode](#live-agent-mode--local-endpoints-only). Persistent accounting remains the default. Offline/mock mode consumes no model requests. The UI follow-up used zero live requests.
 
 ## Quick start — no model service required
 
@@ -99,19 +82,6 @@ There is **no direct public API support or automatic external-provider/mock fall
 - **`session` (opt-in):** only requests with the current Python process's session ID count. Each new process/restart, including an auto-reload replacement, gets a fresh allowance. Browser refreshes do not reset it. All clients, app instances and evaluation cases in the same process share that allowance.
 
 Session scope is for single-worker local development: multiple workers have separate allowances, so it is **not a global spending control**. Both scopes preserve all audit rows in the same ignored **`artifacts/bridge-budget.sqlite`** (`INVESTIGATOR_BUDGET_PATH`). Do not change paths, delete or truncate the ledger to reset usage; use the explicit session opt-in for local testing. Failed calls count, SDK retries remain disabled, and the six-call investigation limit still applies. `INVESTIGATOR_TIMEOUT_SECONDS` defaults to 60 seconds (allowed range: 1–120). The shared bridge's internal upstream retries, actual monetary costs and coding-agent usage are not covered by that counter. Cache fields are reported only when exposed; no cost savings are claimed.
-
-### Configuration migration
-
-Rename existing `.env` entries and shell exports; **there are no legacy aliases**. For the installed bridge, the old root URL must become the full SDK base URL shown below. The rename does not change model IDs or erase ledger history. The separate `INVESTIGATOR_BUDGET_SCOPE` setting defaults to `persistent`; choose `session` explicitly for per-process local testing.
-
-| Previous name | Current name |
-| --- | --- |
-| `BRIDGE_URL` | `ANTHROPIC_BASE_URL` — use `http://localhost:8765/cc`, not the old `http://localhost:8765` |
-| `BRIDGE_TOKEN` | `ANTHROPIC_API_KEY` |
-| `BRIDGE_MODEL` | `ANTHROPIC_MODEL` |
-| `BRIDGE_REQUEST_LIMIT` | `INVESTIGATOR_REQUEST_LIMIT` |
-| `BRIDGE_TIMEOUT_SECONDS` | `INVESTIGATOR_TIMEOUT_SECONDS` |
-| `BRIDGE_BUDGET_PATH` | `INVESTIGATOR_BUDGET_PATH` — keep the same ledger file |
 
 ### API contract
 
@@ -182,5 +152,7 @@ The bundled synthetic dataset retains its separate [upstream attribution and lic
 ## Boundaries before production
 
 This is a local single-user demo, **without authentication, tenant isolation or a live payment connector**. Never expose the server port publicly. Complete evidence does not prove bank settlement, absence of later refunds, or a hidden technical cause. Scope does not include disputes, refunds or general payment operations. Runtime tool restrictions are not an operating-system sandbox. Public dataset licensing/attribution is documented under `data/raw`; no Stripe affiliation, actual customer engagement or achieved business benefit is implied.
+
+Known limitations and outstanding work are documented in the [engineering review](docs/ENGINEERING_REVIEW.md).
 
 Before a real pilot: agree provider coverage and read-only access, authorization/tenancy, data minimization and retention, inference-provider terms, runtime isolation, operational ownership, quotas, audits, independently reviewed customer evaluations and rollback. See [architecture](docs/architecture.md) for the full gap list and [brief](docs/brief.md) for a bounded shadow-mode proposal.
