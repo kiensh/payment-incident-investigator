@@ -1,6 +1,6 @@
 # Existing Copilot bridge contract
 
-Inspected 2026-11-15 without restarting/reconfiguring the existing service, opening OAuth stores or executing downloaded setup scripts. Local install: `<local-model-service>`. Running version identifies as 0.5.25, revision `e35a5fbcad8023a3922b1874cc21a5059c733ee9`; loopback listeners on IPv4/IPv6.
+Inspected 2026-11-15 without restarting/reconfiguring the existing service, opening OAuth stores or executing downloaded setup scripts. Running version identifies as 0.5.25, revision `e35a5fbcad8023a3922b1874cc21a5059c733ee9`; loopback listeners on IPv4/IPv6.
 
 ## Verified interface
 

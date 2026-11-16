@@ -159,6 +159,11 @@ Expand **Technical details** to show actual tool calls/results and measured usag
 - `evals`: private scenario definitions, independent expected answers and real-entry-point runner; never served by runtime tools.
 - `docs`: [one-page customer brief](docs/brief.md), [architecture/trade-offs](docs/architecture.md), [status](docs/STATUS.md).
 
+## License
+
+The project code and documentation are available under the [MIT License](LICENSE).
+The bundled synthetic dataset retains its separate [upstream attribution and license notice](data/raw/LICENSE_NOTICE.md); the project license does not replace third-party notices.
+
 ## Boundaries before production
 
 This is a local single-user demo, **without authentication, tenant isolation or a live payment connector**. Never expose the server port publicly. Complete evidence does not prove bank settlement, absence of later refunds, or a hidden technical cause. Scope does not include disputes, refunds or general payment operations. Runtime tool restrictions are not an operating-system sandbox. Public dataset licensing/attribution is documented under `data/raw`; no Stripe affiliation, actual customer engagement or achieved business benefit is implied.
