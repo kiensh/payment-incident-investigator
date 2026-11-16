@@ -1,6 +1,6 @@
 # Payment Incident Investigator
 
-Repository: [kiensh/payment-incident-investigator](https://github.com/kiensh/payment-incident-investigator) · **private** (reviewers need access).
+Repository: [kiensh/payment-incident-investigator](https://github.com/kiensh/payment-incident-investigator).
 
 A read-only, evidence-grounded support workspace for a payment that looks different across systems. Built as an interview-ready, production-minded MVP — **not a production payment service**.
 
@@ -9,6 +9,14 @@ Ask: “The customer saw payment failed, but another system says it completed. W
 The workspace separates **facts, discrepancies, hypotheses, unknowns and safe checks**, with inspectable record citations, quality warnings, runbooks and actual tool traces. One bounded agent consults evidence and procedures; deterministic rules own financial facts. No refunds, charge retries or financial-write capabilities exist.
 
 **Data disclaimer:** the Kaggle source and all lifecycle observations are synthetic. Generated lifecycle records are independent demonstrations, not reconstructed histories. The application has no payment-provider connection and moves no money. The only live integration is model inference through a configured local Anthropic-compatible endpoint.
+
+## Video demo
+
+[![Annotated walkthrough of the payment investigation workspace, with arrows pointing to the relevant controls and evidence](docs/assets/demo-preview.png)](docs/assets/demo.webm)
+
+**[Open or download the video demo](docs/assets/demo.webm)** · 1 minute 21 seconds · WebM · 3.1 MB · silent with on-screen explanations.
+
+A real live-model walkthrough using synthetic evidence: select a reported symptom, investigate, inspect a source citation, and review the runbook and execution trace. Recording-only callouts point to the exact buttons and fields being discussed. No real customer data or payment actions are involved. If your browser does not play the repository file inline, download the WebM and open it in a compatible browser or player.
 
 ## Verification and current review — 2026-11-15
 
