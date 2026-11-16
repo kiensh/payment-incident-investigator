@@ -12,11 +12,13 @@ The workspace separates **facts, discrepancies, hypotheses, unknowns and safe ch
 
 ## Video demo
 
-[![Annotated walkthrough of the payment investigation workspace, with arrows pointing to the relevant controls and evidence](docs/assets/demo-preview.png)](docs/assets/demo.webm)
+https://github.com/user-attachments/assets/17ed9e96-74dd-4f1e-920e-a0fc726fcff3
 
-**[Open or download the video demo](docs/assets/demo.webm)** · 1 minute 21 seconds · WebM · 3.1 MB · silent with on-screen explanations.
+**[Open the video demo](https://github.com/user-attachments/assets/17ed9e96-74dd-4f1e-920e-a0fc726fcff3)** · 1 minute 21 seconds · WebM · 2.2 MB · silent with on-screen explanations.
 
-A real live-model walkthrough using synthetic evidence: select a reported symptom, investigate, inspect a source citation, and review the runbook and execution trace. Recording-only callouts point to the exact buttons and fields being discussed. No real customer data or payment actions are involved. If your browser does not play the repository file inline, download the WebM and open it in a compatible browser or player.
+A real live-model walkthrough using synthetic evidence: select a reported symptom, investigate, inspect a source citation, and review the runbook and execution trace. Recording-only callouts point to the exact buttons and fields being discussed. No real customer data or payment actions are involved.
+
+If the embedded player is unavailable in your browser, [open or download the WebM directly](https://raw.githubusercontent.com/kiensh/payment-incident-investigator/main/docs/assets/demo.webm).
 
 ## Verification and current review — 2026-11-15
 
